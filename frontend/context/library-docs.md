@@ -159,6 +159,58 @@ export class CreatePantryItemDto {
 }
 ```
 
+## Config validation (`@nestjs/config` + class-validator)
+
+Configuration is **validated at boot** so a bad env crashes the app at startup, not on the
+first request. `config/env.validation.ts` defines an `EnvironmentVariables` class with
+class-validator decorators; `ConfigModule.forRoot({ isGlobal: true, load: [configuration],
+validate: validateEnv })` runs it.
+
+- Validate presence/type of `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`,
+  `GEMINI_API_KEY`; optional `PORT`, `CORS_ORIGIN`, `NODE_ENV` with defaults.
+- `config/configuration.ts` returns a **typed, namespaced** object (`jwt.accessSecret`,
+  `gemini.model`, …). In feature code read config via `ConfigService.get(...)` /
+  `getOrThrow(...)`, **never** `process.env`.
+
+## helmet + `@nestjs/throttler` (security)
+
+- `app.use(helmet())` in `main.ts` for security headers.
+- A **global** `ThrottlerGuard` (via `APP_GUARD`) rate-limits everything; tighten limits on
+  `/auth/*` (brute force) and `/recipes/generate` (each call costs a paid Gemini request) with
+  a route-level `@Throttle(...)`.
+
+## nestjs-pino + `LoggingInterceptor` (logging)
+
+- `LoggerModule.forRoot({ pinoHttp: { autoLogging: false, ... } })`; `app.useLogger(app.get(
+  Logger))` and create the app with `bufferLogs: true`. `pino-pretty` transport in dev only;
+  redact `authorization` / `cookie` headers.
+- `autoLogging` is **off** so a single `LoggingInterceptor` owns request logs (method, url,
+  status, latency). Never `console.log` in app code — inject the pino logger.
+
+## PrismaExceptionFilter
+
+A dedicated `@Catch(Prisma.PrismaClientKnownRequestError)` filter maps DB error codes to clean
+HTTP responses, keeping the `{ success: false, message }` envelope:
+
+- `P2002` (unique constraint) → **409 Conflict**
+- `P2025` (record not found) → **404 Not Found**
+- `P2003` (FK constraint) → **400 Bad Request**
+
+Register it **before** `AllExceptionsFilter` in `useGlobalFilters(...)` so Prisma errors are
+handled by the specific filter and never fall through to the generic 500.
+
+## Auth decorators (`@Public`, `@CurrentUser`) + graceful shutdown
+
+- `@Public()` (sets metadata) marks the few routes the global `JwtAuthGuard` should skip.
+- `@CurrentUser()` is a param decorator returning `request.user` (set by `JwtStrategy`), so the
+  `userId` always comes from the verified JWT: `list(@CurrentUser("id") userId: string)`.
+- `app.enableShutdownHooks()` in `main.ts` so Prisma disconnects cleanly on SIGTERM/SIGINT.
+
+## Testing (Jest)
+
+- **Unit:** `*.service.spec.ts` next to each service — logic with `PrismaService` mocked.
+- **e2e:** `test/*.e2e-spec.ts` — real HTTP through the app against a dedicated test database.
+
 ---
 
 ## Google Gemini — AI recipe generation

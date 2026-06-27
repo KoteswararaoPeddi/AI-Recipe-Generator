@@ -39,7 +39,9 @@ The browser never sees the database or the `GEMINI_API_KEY`. AI runs server-side
 | ORM          | Prisma                            | Typed DB access + migrations                                  |
 | Database     | PostgreSQL                        | Users, preferences, pantry, recipes, meal plans, shopping     |
 | Auth         | Passport JWT + bcryptjs           | JWT sessions (HTTP-only cookies); password hashing            |
-| Validation   | class-validator / class-transformer | Request DTO validation                                      |
+| Validation   | class-validator / class-transformer | Request DTO validation + boot-time env validation           |
+| Security     | helmet + `@nestjs/throttler`      | Security headers; rate limiting (esp. `/auth`, `/recipes/generate`) |
+| Logging      | nestjs-pino (pino)                | Structured request logging via a `LoggingInterceptor`         |
 | AI           | Google Gemini 2.5 Flash (`@google/genai`) | Recipe generation (server-side only)                  |
 
 > **AI provider is Google Gemini, not Anthropic/Claude.** Model: `gemini-2.5-flash`. The
@@ -70,25 +72,88 @@ ShoppingItem    id, userId, name, quantity, unit, checked
 
 ---
 
-## Backend Module Layout
+## Backend Folder Structure (production-grade, four layers)
+
+The backend is a **modular monolith**: one deployable, strict module boundaries. Four
+top-level layers read clearly — `config/`, `common/`, `prisma/`, and `modules/`. Feature
+modules live under `src/modules/` (not flat in `src/`).
 
 ```
-backend/src/
-├── main.ts                  → bootstrap: ValidationPipe, cookie-parser, CORS, setGlobalPrefix("api")
-├── prisma/                  → PrismaService (extends PrismaClient)
-├── auth/                    → register/login/refresh/logout, JwtStrategy, guards
-├── users/ (preferences)     → GET/PUT default diet + cuisine
-├── pantry/                  → CRUD pantry items; expiry + low-stock derivation
-├── recipes/
-│   ├── recipes.*            → save / list / search / filter saved recipes
-│   └── ai/                  → Gemini service: prompt build → generate → parse → return
-├── meal-planner/            → weekly entries by slot; week navigation queries
-└── shopping/                → list CRUD; "add to pantry" promotion
-prisma/
-├── schema.prisma
-├── migrations/
-└── seed.ts                  → enum reference data / sample pantry (optional)
+backend/
+├── prisma/
+│   ├── schema.prisma
+│   ├── migrations/
+│   └── seed.ts                    → enum reference data / sample pantry (optional)
+└── src/
+    ├── main.ts                    → bootstrap: pipes, filters, interceptors, helmet, CORS, shutdown hooks
+    ├── app.module.ts              → root: imports config + infra + all feature modules
+    │
+    ├── config/                    → typed, validated configuration
+    │   ├── configuration.ts        → config factory (returns a typed, namespaced object)
+    │   ├── env.validation.ts       → schema; the app REFUSES TO BOOT on invalid env
+    │   └── config.types.ts
+    │
+    ├── common/                    → cross-cutting, domain-agnostic. Imports NOTHING from modules/.
+    │   ├── decorators/             → @CurrentUser(), @Public()
+    │   ├── filters/                → AllExceptionsFilter, PrismaExceptionFilter
+    │   ├── interceptors/           → ResponseInterceptor, LoggingInterceptor
+    │   ├── guards/                 → JwtAuthGuard (global), added in the auth phase
+    │   ├── pipes/
+    │   ├── dto/                    → shared DTOs (e.g. PaginationQueryDto)
+    │   └── types/
+    │
+    ├── prisma/                    → PrismaService + PrismaModule (@Global)
+    │
+    └── modules/                   → one folder per domain — the heart of the app
+        ├── auth/                   → register/login/refresh/logout, JwtStrategy, guard
+        ├── users/                  → preferences: GET/PUT default diet + cuisine
+        ├── pantry/                 → CRUD pantry items; expiry + low-stock derivation
+        ├── recipes/                → save / list / search / filter saved recipes
+        ├── ai/                     → Gemini wrapper, injected into recipes (isolated)
+        ├── meal-planner/           → weekly entries by slot; week navigation queries
+        └── shopping/               → list CRUD; "add to pantry" promotion
+    └── test/                       → e2e specs (test/*.e2e-spec.ts)
 ```
+
+### Module boundary rule (what keeps it production-grade)
+
+`common/` and `prisma/` **never import from `modules/`**. A module **never imports another
+module's internals** — it imports another module's **exported service** through the Nest
+module system only. This is what stops the app rotting into circular dependencies.
+
+### Anatomy of one feature module
+
+Every domain folder has the same shape (using `pantry/` as the template):
+
+```
+modules/pantry/
+├── pantry.module.ts          → wires controller + service; exports the service if others need it
+├── pantry.controller.ts      → THIN — HTTP only: route, @CurrentUser, call service, return
+├── pantry.service.ts         → ALL business logic + Prisma access
+├── dto/
+│   ├── create-pantry-item.dto.ts   → class-validator decorators = the request contract
+│   ├── update-pantry-item.dto.ts   → PartialType(CreateDto)
+│   └── pantry-query.dto.ts
+├── entities/
+│   └── pantry-item.entity.ts → response/serialization shape (what leaves the API)
+└── pantry.service.spec.ts    → unit tests
+```
+
+- **Controllers are thin** — no Prisma, no logic; translate HTTP ↔ service. If a handler is
+  more than ~5 lines, logic leaked in.
+- **Services own logic and persistence** — take the authenticated `userId`, scope every query
+  to it, throw Nest exceptions (`NotFoundException`, `ForbiddenException`); never return raw DB
+  errors.
+- **DTOs are the input contract** — every body is a class with validation decorators;
+  `ValidationPipe({ whitelist: true })` strips anything not declared.
+- **Entities are the output contract** — `@Exclude()`/`@Expose()` (class-transformer) so
+  `passwordHash` can never serialize out.
+- **The AI module is isolated** — `ai/` wraps Gemini behind a service interface, injected into
+  `recipes`. Swapping models or SDK touches one file; the rest stays testable without the API.
+
+> The current scaffold is the lighter starting point — `health/` sits flat under `src/`, and
+> `config/` plus the `modules/` restructure are **documented here but not yet applied**. The
+> move to this structure happens as the feature phases land (see build-plan.md / progress-tracker.md).
 
 API surface (all under `/api`, all authenticated except auth routes):
 
@@ -204,8 +269,19 @@ Rules the AI agent must never violate:
   imports from `features`/`app`.
 - All cross-cutting frontend HTTP goes through the shared axios instance and feature services
   — never a bare `fetch`/`axios()` in a component.
-- Backend: one **module per domain**; controllers thin, services hold logic. Every request
-  body is a validated DTO (`whitelist: true, transform: true`).
+- Backend: one **module per domain** under `src/modules/`; controllers thin, services hold
+  logic. Every request body is a validated DTO (`whitelist: true, transform: true`).
+- **Module boundaries:** `common/` and `prisma/` never import from `modules/`; a module never
+  imports another module's internals — only its exported service via the Nest module system.
+- **Config is validated at boot** — the app refuses to start on missing/invalid env
+  (`DATABASE_URL`, JWT secrets, `GEMINI_API_KEY`). Read config via `ConfigService`, not
+  `process.env`, in feature code.
+- **Secure by default** — a global `JwtAuthGuard` protects every route; only routes marked
+  `@Public()` (register/login/refresh, health) are open. The `userId` always comes from the
+  verified JWT via `@CurrentUser()`, never from the client.
+- **Errors stay in the envelope** — `PrismaExceptionFilter` maps DB errors (P2002→409,
+  P2025→404) and `AllExceptionsFilter` catches the rest; both emit `{ success: false, message }`
+  and never leak internals. helmet + rate limiting are always on.
 - Dark theme only — every surface uses the semantic tokens (see ui-tokens.md). No hardcoded
   hex or raw Tailwind color classes in components.
 - Do not add payments, social features, or store integrations — none are in scope.

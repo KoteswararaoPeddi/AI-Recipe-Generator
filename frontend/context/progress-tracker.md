@@ -102,6 +102,17 @@ See build-plan.md for the full per-phase breakdown.
 _Add notes here as the build progresses — workarounds, patterns, anything that differs from
 the context files._
 
+> **Backend conventions documented, not yet applied.** architecture.md, code-standards.md, and
+> library-docs.md now describe the production-grade structure (four layers: `config/` /
+> `common/` / `prisma/` / `modules/`; thin controllers + fat services; DTO/entity contracts;
+> the module boundary rule) and required hardening (boot-time config validation, global
+> `JwtAuthGuard` + `@Public`/`@CurrentUser`, `PrismaExceptionFilter`, helmet, `@nestjs/throttler`,
+> nestjs-pino + `LoggingInterceptor`, `enableShutdownHooks`, unit + e2e tests). The **current
+> scaffold is still the lighter foundation**: `health/` is flat under `src/`, there is no
+> `config/` layer, and no feature modules exist. Apply the structure + hardening as the feature
+> phases land. Deps for the hardening (helmet, @nestjs/throttler, nestjs-pino, @nestjs/jwt,
+> @nestjs/passport, passport-jwt, bcryptjs, pino-pretty) are already installed.
+
 > **tailwind-merge / custom type scale:** `cn()` in `src/shared/lib/utils.ts` registers the
 > custom `text-*` size tokens with `extendTailwindMerge` so size classes (`text-h2`) are not
 > conflated with colour classes (`text-foreground`) and dropped. Any new `text-size` token

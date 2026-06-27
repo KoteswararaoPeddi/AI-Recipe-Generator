@@ -99,16 +99,73 @@ Follow these every session — they prevent pattern drift. See architecture.md f
 
 ---
 
-## Backend (NestJS) — essentials
+## Backend (NestJS) — production-grade conventions
 
-- One **module per domain** (`auth`, `pantry`, `recipes`, `meal-planner`, `shopping`,
-  `users`). Controllers are thin; services hold logic. Full patterns in library-docs.md.
-- Global `ValidationPipe` (`whitelist: true, transform: true`); every request body is a DTO
-  with `class-validator` decorators. `cookie-parser` on; CORS with `credentials: true`.
+### Four-layer structure
+
+The backend is a modular monolith with four top-level layers (see architecture.md for the
+full tree):
+
+- `src/config/` — typed, **boot-validated** configuration.
+- `src/common/` — cross-cutting, domain-agnostic code (decorators, filters, interceptors,
+  guards, pipes, shared DTOs). **Imports nothing from `modules/`.**
+- `src/prisma/` — the global `PrismaService` / `PrismaModule`.
+- `src/modules/<domain>/` — one folder per domain (`auth`, `users`, `pantry`, `recipes`,
+  `ai`, `meal-planner`, `shopping`).
+
+**Module boundary rule:** `common/` and `prisma/` never import from `modules/`; a module
+never imports another module's internals — only its **exported service** through the Nest
+module system. This is non-negotiable — it prevents circular dependencies.
+
+### Module anatomy
+
+Every domain folder has the same shape: `*.module.ts`, `*.controller.ts`, `*.service.ts`,
+`dto/`, `entities/`, `*.service.spec.ts`. The discipline:
+
+- **Controllers are thin** — HTTP only: route, pull `@CurrentUser()`, call the service,
+  return. No Prisma, no logic. A handler over ~5 lines means logic leaked in.
+- **Services own logic and persistence** — they take the authenticated `userId`, scope every
+  query to it, and throw Nest exceptions (`NotFoundException`, `ForbiddenException`, …) — never
+  return a raw DB error.
+- **DTOs are the input contract** — every request body is a class with `class-validator`
+  decorators (`@IsString`, `@IsEnum(Diet)`, …). `ValidationPipe({ whitelist: true, transform:
+  true })` strips undeclared properties. `update-*.dto.ts` uses `PartialType(CreateDto)`.
+- **Entities are the output contract** — shape responses with class-transformer
+  (`@Exclude()`/`@Expose()`) so `passwordHash` can never serialize out.
+
+### Secure by default
+
+- A global `JwtAuthGuard` protects **every** route; mark the few open routes with `@Public()`
+  (register/login/refresh, health). Don't guard routes one by one.
+- The `userId` comes from the verified JWT via the `@CurrentUser()` decorator — **never** from
+  a client-supplied id, body, or param. Every per-user query is scoped to it.
+- helmet (security headers) and `@nestjs/throttler` (rate limiting, especially on `/auth` and
+  the paid `/recipes/generate`) are always on. `cookie-parser` enabled; CORS with
+  `credentials: true`.
+
+### Config & data access
+
+- **Config is validated at boot** (`config/env.validation.ts`) — the app refuses to start on
+  missing/invalid `DATABASE_URL`, JWT secrets, or `GEMINI_API_KEY`. In feature code read config
+  through `ConfigService`, **never** `process.env`.
 - Inject the single `PrismaService`; **never** `new PrismaClient()` elsewhere. Use
   `select`/`include` deliberately; **never select or return `passwordHash`**.
-- Every per-user query is scoped to the authenticated `userId`; never trust a client-supplied
-  id. AI runs server-side only (Gemini); wrap AI calls in try/catch with a friendly fallback.
+
+### Errors, logging, lifecycle
+
+- Throw Nest exceptions in services. `PrismaExceptionFilter` maps DB errors (P2002→409,
+  P2025→404, P2003→400); `AllExceptionsFilter` catches the rest. Both emit
+  `{ success: false, message }` and never leak internals. The `ResponseInterceptor` wraps
+  successes in `{ success: true, message, data }`.
+- Structured logging via **nestjs-pino** + a `LoggingInterceptor` (method, url, status,
+  latency) — never `console.log`. `app.enableShutdownHooks()` for a clean Prisma disconnect.
+- AI runs server-side only (Gemini), isolated in the `ai/` module; wrap AI calls in try/catch
+  with a friendly fallback — an AI outage must never break the rest of the API.
+
+### Testing
+
+- **Unit tests** (`*.service.spec.ts`) cover service logic with Prisma mocked.
+- **e2e tests** (`test/*.e2e-spec.ts`) hit real HTTP against a test database.
 
 ---
 
