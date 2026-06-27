@@ -1,0 +1,162 @@
+// PantryChef domain model. See context/architecture.md.
+// Every per-user row is scoped to a User; deleting a user cascades.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums (shared by preferences, recipes, the generator, and the planner)
+// ---------------------------------------------------------------------------
+
+enum Diet {
+  NONE
+  VEGETARIAN
+  VEGAN
+  KETO
+  PALEO
+  GLUTEN_FREE
+}
+
+enum Cuisine {
+  ANY
+  ITALIAN
+  MEXICAN
+  INDIAN
+  CHINESE
+  THAI
+  JAPANESE
+  MEDITERRANEAN
+  AMERICAN
+  FRENCH
+  GREEK
+  SPANISH
+  KOREAN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MealSlot {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum RecipeSource {
+  AI
+  MANUAL
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preference     Preference?
+  pantryItems    PantryItem[]
+  recipes        Recipe[]
+  mealPlanEntries MealPlanEntry[]
+  shoppingItems  ShoppingItem[]
+
+  @@map("users")
+}
+
+model Preference {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  defaultDiet    Diet    @default(NONE)
+  defaultCuisine Cuisine @default(ANY)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("preferences")
+}
+
+model PantryItem {
+  id                String    @id @default(cuid())
+  userId            String
+  name              String
+  quantity          Float     @default(0)
+  unit              String    @default("unit")
+  expiryDate        DateTime? @db.Date
+  lowStockThreshold Float?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("pantry_items")
+}
+
+model Recipe {
+  id          String       @id @default(cuid())
+  userId      String
+  title       String
+  cuisine     Cuisine      @default(ANY)
+  diet        Diet         @default(NONE)
+  difficulty  Difficulty   @default(MEDIUM)
+  servings    Int          @default(2)
+  ingredients Json // [{ name, quantity, unit, inPantry }]
+  steps       Json // string[]
+  nutrition   Json // { calories, protein, carbs, fat, ... }
+  tips        Json // string[]
+  source      RecipeSource @default(AI)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealPlanEntries MealPlanEntry[]
+
+  @@index([userId])
+  @@index([userId, cuisine])
+  @@index([userId, difficulty])
+  @@map("recipes")
+}
+
+model MealPlanEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  slot      MealSlot
+  recipeId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, slot])
+  @@index([userId, date])
+  @@map("meal_plan_entries")
+}
+
+model ShoppingItem {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  quantity  Float    @default(1)
+  unit      String   @default("unit")
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("shopping_items")
+}

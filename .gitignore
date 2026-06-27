@@ -1,0 +1,14 @@
+# Secrets — never commit real env files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Node
+node_modules/
+
+# Build output
+dist/
+build/

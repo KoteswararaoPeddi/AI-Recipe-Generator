@@ -1,0 +1,390 @@
+/* ============================================================
+   FOUNDATION — palette tokens → generates Tailwind utilities
+   e.g. bg-brand-600, text-neutral-900, border-red-300
+   ============================================================ */
+@theme {
+  /* Typography scale → generates text-display-2xl, text-h1, text-body-base, etc. */
+  --text-display-2xl: 52px;
+  --text-display-xl:  48px;
+  --text-display-lg:  35px;
+  --text-h1:          29px;
+  --text-h2:          24px;
+  --text-h3:          20px;
+  --text-h4:          16px;
+  --text-h5:          14px;
+  --text-h6:          12px;
+  --text-body-lg:     16px;
+  --text-body-base:   14px;
+  --text-body-sm:     12px;
+  --text-label-lg:    14px;
+  --text-label-base:  12px;
+  --text-label-sm:    11px;
+  --text-caption:     11px;
+
+  /* Brand — Teal */
+  --color-brand-50:  #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+  --color-brand-950: #042f2e;
+
+  /* Neutral — Slate */
+  --color-neutral-50:  #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* Red */
+  --color-red-50:  #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+  --color-red-900: #7f1d1d;
+
+  /* Amber */
+  --color-amber-50:  #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+
+  /* Green */
+  --color-green-50:  #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-300: #86efac;
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+  --color-green-900: #14532d;
+
+  /* Blue */
+  --color-blue-50:  #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+
+  /* Emerald Teal — Primary Brand */
+  --color-emerald-teal-50:  #eefbf7;
+  --color-emerald-teal-100: #d5f5eb;
+  --color-emerald-teal-200: #adead7;
+  --color-emerald-teal-300: #7fdcbc;
+  --color-emerald-teal-400: #4dc99f;
+  --color-emerald-teal-500: #20b286; /* Base Color */
+  --color-emerald-teal-600: #17936f;
+  --color-emerald-teal-700: #12765a;
+  --color-emerald-teal-800: #0f5d48;
+  --color-emerald-teal-900: #0d4b3a;
+  --color-emerald-teal-950: #072a20;
+
+  /* Cyprus — Secondary Brand */
+  --color-charcoal-black-50:  #f5f7f8;
+  --color-charcoal-black-100: #e8ecef;
+  --color-charcoal-black-200: #d1d9df;
+  --color-charcoal-black-300: #b0bcc6;
+  --color-charcoal-black-400: #8697a5;
+  --color-charcoal-black-500: #657684;
+  --color-charcoal-black-600: #4d5b66;
+  --color-charcoal-black-700: #39434b;
+  --color-charcoal-black-800: #252c31;
+  --color-charcoal-black-900: #0f1418;
+  --color-charcoal-black-950: #070a0c;
+
+  /* Surf Crest — Secondary Brand Light */
+  --color-surf-crest-50:  #f5f8f0;
+  --color-surf-crest-100: #e9f1de;
+  --color-surf-crest-200: #c1d6a4;
+  --color-surf-crest-300: #9ec47e;
+  --color-surf-crest-400: #7aaf5a;
+  --color-surf-crest-500: #5b9040;
+  --color-surf-crest-600: #457130;
+  --color-surf-crest-700: #335426;
+  --color-surf-crest-800: #26401c;
+  --color-surf-crest-900: #1a2d13;
+  --color-surf-crest-950: #0f1b0b;
+
+  /* Aqua Spring — Accent */
+  --color-aqua-spring-50:  #e0f5ec;
+  --color-aqua-spring-100: #c0ebd8;
+  --color-aqua-spring-200: #90d6b5;
+  --color-aqua-spring-300: #5abb8e;
+  --color-aqua-spring-400: #34a06f;
+  --color-aqua-spring-500: #1c8457;
+  --color-aqua-spring-600: #146a44;
+  --color-aqua-spring-700: #0e5034;
+  --color-aqua-spring-800: #0a3d28;
+  --color-aqua-spring-900: #072c1d;
+  --color-aqua-spring-950: #041c12;
+
+  /* Purple — Primary UI */
+  --color-purple-50:  #f0eeff;
+  --color-purple-100: #e3dffd;
+  --color-purple-200: #c8c0fb;
+  --color-purple-300: #a89af8;
+  --color-purple-400: #8979f4;
+  --color-purple-500: #7164f0;
+  --color-purple-600: #5649d8;
+  --color-purple-700: #4138b5;
+  --color-purple-800: #312b8c;
+  --color-purple-900: #242069;
+  --color-purple-950: #16123d;
+
+  /* Grey — Subtle / Helper Text */
+  --color-grey-50:  #fafafa;
+  --color-grey-100: #f4f4f4;
+  --color-grey-200: #e8e8e8;
+  --color-grey-300: #d1d1d1;
+  --color-grey-400: #b0b0b0;
+  --color-grey-500: #9c9c9c;
+  --color-grey-600: #7a7a7a;
+  --color-grey-700: #5f5f5f;
+  --color-grey-800: #474747;
+  --color-grey-900: #313131;
+  --color-grey-950: #1c1c1c;
+}
+
+
+/* ============================================================
+     2. LIGHT THEME
+      Semantic CSS variables — actual values live here.
+      No Tailwind utilities yet, just named CSS vars.
+   ============================================================ */
+:root {
+  /* Primary */
+  --primary:                var(--color-emerald-teal-500);
+  --primary-hover:          var(--color-emerald-teal-600);
+  --primary-subtle:         var(--color-emerald-teal-950);
+  --primary-fg:             #ffffff;
+
+  /* Secondary */
+  --secondary:              var(--color-charcoal-black-800);
+  --secondary-hover:        var(--color-charcoal-black-700);
+  --secondary-subtle:       var(--color-charcoal-black-950);
+  --secondary-fg:           #ffffff;
+
+  /* Danger */
+  --danger:                 var(--color-red-600);
+  --danger-hover:           var(--color-red-700);
+  --danger-subtle:          var(--color-red-50);
+  --danger-fg:              #ffffff;
+
+  /* Warning */
+  --warning:                var(--color-amber-500);
+  --warning-hover:          var(--color-amber-600);
+  --warning-subtle:         var(--color-amber-50);
+  --warning-fg:             var(--color-amber-900);
+
+  /* Success */
+  --success:                var(--color-green-600);
+  --success-hover:          var(--color-green-700);
+  --success-subtle:         var(--color-green-50);
+  --success-fg:             #ffffff;
+
+  /* Info */
+  --info:                   var(--color-blue-600);
+  --info-hover:             var(--color-blue-700);
+  --info-subtle:            var(--color-blue-50);
+  --info-fg:                #ffffff;
+
+  /* Surfaces */
+  --background:             var(--color-charcoal-black-900);
+  --surface:                #1a2329;
+  --surface-raised:         var(--color-charcoal-black-800);
+  --surface-overlay:        var(--color-charcoal-black-700);
+
+  /* Borders */
+  --border:                 #242b32;
+  --border-strong:          var(--color-charcoal-black-700);
+  --input:                  var(--color-charcoal-black-700);
+  --ring:                   var(--color-emerald-teal-500);
+  --radius:                 0.625rem;
+
+  /* Text */
+  --foreground:             var(--color-neutral-50);
+  --muted-foreground:       var(--color-neutral-400);
+  --subtle-foreground:      var(--color-neutral-500);
+  --on-primary:             #ffffff;
+
+  /* shadcn component aliases — point to our semantic vars above */
+  --card:                       var(--surface);
+  --card-foreground:            var(--foreground);
+  --popover:                    var(--surface);
+  --popover-foreground:         var(--foreground);
+  --primary-foreground:         var(--primary-fg);
+  --secondary-foreground:       var(--secondary-fg);
+  --muted:                      var(--surface-raised);
+  --accent:                     var(--surface-raised);
+  --accent-foreground:          var(--foreground);
+  --destructive:                var(--danger);
+  --sidebar:                    var(--surface);
+  --sidebar-foreground:         var(--foreground);
+  --sidebar-primary:            var(--primary);
+  --sidebar-primary-foreground: var(--primary-fg);
+  --sidebar-accent:             var(--surface-raised);
+  --sidebar-accent-foreground:  var(--foreground);
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--ring);
+}
+
+
+/* ============================================================
+   3. DARK THEME
+      Override only the semantic vars from :root above.
+      shadcn aliases update automatically via the var() chain.
+   ============================================================ */
+.dark {
+  /* Primary */
+  --primary:                var(--color-emerald-teal-400);
+  --primary-hover:          var(--color-emerald-teal-300);
+  --primary-subtle:         var(--color-emerald-teal-950);
+
+  /* Secondary */
+  --secondary:              var(--color-charcoal-black-700);
+  --secondary-hover:        var(--color-charcoal-black-600);
+  --secondary-subtle:       var(--color-charcoal-black-950);
+
+  /* Danger */
+  --danger:                 var(--color-red-400);
+  --danger-hover:           var(--color-red-300);
+  --danger-subtle:          #450a0a;
+
+  /* Warning */
+  --warning:                var(--color-amber-400);
+  --warning-hover:          var(--color-amber-300);
+  --warning-subtle:         #451a03;
+  --warning-fg:             var(--color-amber-100);
+
+  /* Success */
+  --success:                var(--color-green-400);
+  --success-hover:          var(--color-green-300);
+  --success-subtle:         #052e16;
+
+  /* Info */
+  --info:                   var(--color-blue-400);
+  --info-hover:             var(--color-blue-300);
+  --info-subtle:            #172554;
+
+  /* Surfaces */
+  --background:             var(--color-neutral-950);
+  --surface:                var(--color-neutral-900);
+  --surface-raised:         var(--color-neutral-800);
+  --surface-overlay:        var(--color-neutral-700);
+
+  /* Borders */
+  --border:                 var(--color-neutral-700);
+  --border-strong:          var(--color-neutral-600);
+  --input:                  var(--color-neutral-700);
+  --ring:                   var(--color-emerald-teal-400);
+
+  /* Text */
+  --foreground:             var(--color-neutral-50);
+  --muted-foreground:       var(--color-neutral-400);
+  --subtle-foreground:      var(--color-neutral-500);
+}
+
+
+/* ============================================================
+   4. TAILWIND UTILITIES
+      Exposes :root semantic vars as Tailwind utility classes.
+      --color-* prefix is what Tailwind reads to generate utilities.
+      text-primary, bg-background, border-border, etc.
+      No values here — only var() references to :root above.
+   ============================================================ */
+@theme inline {
+  --color-primary:           var(--primary);
+  --color-primary-hover:     var(--primary-hover);
+  --color-primary-subtle:    var(--primary-subtle);
+  --color-primary-fg:        var(--primary-fg);
+
+  --color-secondary:         var(--secondary);
+  --color-secondary-hover:   var(--secondary-hover);
+  --color-secondary-subtle:  var(--secondary-subtle);
+  --color-secondary-fg:      var(--secondary-fg);
+
+  --color-danger:            var(--danger);
+  --color-danger-hover:      var(--danger-hover);
+  --color-danger-subtle:     var(--danger-subtle);
+  --color-danger-fg:         var(--danger-fg);
+
+  --color-warning:           var(--warning);
+  --color-warning-hover:     var(--warning-hover);
+  --color-warning-subtle:    var(--warning-subtle);
+  --color-warning-fg:        var(--warning-fg);
+
+  --color-success:           var(--success);
+  --color-success-hover:     var(--success-hover);
+  --color-success-subtle:    var(--success-subtle);
+  --color-success-fg:        var(--success-fg);
+
+  --color-info:              var(--info);
+  --color-info-hover:        var(--info-hover);
+  --color-info-subtle:       var(--info-subtle);
+  --color-info-fg:           var(--info-fg);
+
+  --color-background:        var(--background);
+  --color-surface:           var(--surface);
+  --color-surface-raised:    var(--surface-raised);
+  --color-surface-overlay:   var(--surface-overlay);
+
+  --color-border:            var(--border);
+  --color-border-strong:     var(--border-strong);
+
+  --color-foreground:        var(--foreground);
+  --color-muted-foreground:  var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-on-primary:        var(--on-primary);
+
+  /* shadcn component color utilities — required so bg-popover, bg-muted,
+     text-popover-foreground etc. generate correctly from :root aliases */
+  --color-card:                       var(--card);
+  --color-card-foreground:            var(--card-foreground);
+  --color-popover:                    var(--popover);
+  --color-popover-foreground:         var(--popover-foreground);
+  --color-primary-foreground:         var(--primary-foreground);
+  --color-secondary-foreground:       var(--secondary-foreground);
+  --color-muted:                      var(--muted);
+  --color-accent:                     var(--accent);
+  --color-accent-foreground:          var(--accent-foreground);
+  --color-destructive:                var(--destructive);
+  --color-input:                      var(--input);
+  --color-ring:                       var(--ring);
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
+}

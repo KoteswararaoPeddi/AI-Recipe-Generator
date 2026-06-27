@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "skillOverrides": {
+    "remember": "off"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking for feature-build intent",
+            "command": "grep -qiE 'build|implement|create|feature' && echo 'REMINDER: this looks like a feature build. Per AGENTS.md, run /architect first and confirm a plan before writing code.' || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking for UI component edits",
+            "command": "f=$(grep -oE '\"file_path\":\"[^\"]*\"' | head -1); printf '%s' \"$f\" | grep -qiE 'components/|[.]tsx\"' && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"REMINDER: you edited a UI component. Run /imprint to capture its patterns into ui-registry.md before finishing (first run on this project: /imprint audit).\"}}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}
