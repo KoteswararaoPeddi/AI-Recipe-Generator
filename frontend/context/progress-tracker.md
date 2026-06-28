@@ -7,9 +7,10 @@ immediately know what is done, what is in progress, and what is next.
 
 ## Current Status
 
-**Phase:** 0 — Foundation. The **frontend is scaffolded** and the **backend foundation is
-built and running** (NestJS + Prisma + PostgreSQL, migrated). **No product feature module is
-built yet.** The feature list in project-overview.md is the target, not the current state.
+**Phase:** 1 — Authentication **done** (backend). Frontend is scaffolded; the **backend now
+has the full production structure** (`config/` · `common/` · `prisma/` · `modules/`) and a
+working, verified auth system. No other feature module exists yet. The remaining feature list
+in project-overview.md is the target, not the current state.
 
 **Done:**
 
@@ -34,19 +35,40 @@ built yet.** The feature list in project-overview.md is the target, not the curr
   Preference, PantryItem, Recipe, MealPlanEntry, ShoppingItem) + enums (Diet, Cuisine,
   Difficulty, MealSlot, RecipeSource). `PrismaService`/`PrismaModule` (global). Migration
   `init` applied — `pantrychef` DB created at localhost:5432, all tables live. Client v6.19.3.
-- **Env.** `backend/.env` (gitignored) holds `DATABASE_URL` (working), placeholder JWT secrets,
-  and the Gemini key slot; `backend/.env.example` documents all keys. Root `.gitignore`
-  protects every `.env`.
+- **Env.** `backend/.env` (gitignored) holds `DATABASE_URL` (working), **real generated JWT
+  secrets** (`JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` + `*_TTL`), and the Gemini key slot;
+  `backend/.env.example` documents all keys. Root `.gitignore` protects every `.env`.
+- **Production structure applied.** Backend is now the four-layer layout: `src/config/`
+  (configuration + `env.validation` — **boot-time validation** wired via
+  `ConfigModule.forRoot({ validate })`), `src/common/` (decorators `@Public`/`@CurrentUser`,
+  guards `JwtAuthGuard` global + `JwtRefreshGuard`, filters `PrismaExceptionFilter` +
+  `AllExceptionsFilter`, `ResponseInterceptor`), `src/prisma/`, and `src/modules/`. `main.ts`
+  adds **helmet**, **`@nestjs/throttler`** (global, 100/min), and `enableShutdownHooks()`.
+  `health/` moved under `modules/health`. (Structured pino logging is documented but **not yet
+  wired** — still on the default Nest logger; add when needed.)
+- **Authentication (Phase 1) — `modules/auth` + `modules/users`.** JWT access + refresh in
+  HTTP-only cookies, bcryptjs password hashing, **DB-backed refresh-token rotation** (a
+  bcrypt(SHA-256(token)) hash stored on `User.hashedRefreshToken`). `JwtStrategy` (access,
+  cookie) + `JwtRefreshStrategy` (refresh, cookie). Endpoints, all verified end-to-end with
+  curl:
+  - `POST /api/auth/register` (201, `@Public`) — creates user + default preferences, sets cookies
+  - `POST /api/auth/login` (200, `@Public`)
+  - `POST /api/auth/refresh` (200, `@Public` + `JwtRefreshGuard`) — rotates the pair
+  - `POST /api/auth/logout` (200) — clears cookies + nulls stored hash
+  - `GET /api/auth/me` (200) — current user
+  Verified behaviors: bad email → 400; duplicate → 409; wrong password / no-cookie → 401;
+  **reusing a rotated refresh token → 403**; **refresh after logout → 403**. No `passwordHash`
+  or `hashedRefreshToken` ever serialized out (services use a `SAFE_USER_SELECT`).
 
-**Not started (everything product-facing):**
+**Not started (everything else product-facing):**
 
-- Shared **frontend axios instance** + JWT/401-refresh interceptor.
-- Backend **feature modules**: auth, pantry, preferences, recipes + Gemini, meal-planner,
-  shopping — see build-plan.md phases 1–8.
+- **Frontend** `(auth)` pages + shared axios instance with JWT/401-refresh interceptor (the
+  client side of auth is not built — only the API exists).
+- Backend **feature modules**: users/preferences endpoints, pantry, recipes + Gemini,
+  meal-planner, shopping — see build-plan.md phases 2–8.
 
-**Next:** Phase 1 — Authentication (auth module: register/login/refresh/logout with bcryptjs +
-JWT cookies, `JwtStrategy` + global guard), then the frontend `(auth)` pages and axios
-instance. Every other slice is per-user, so auth comes first.
+**Next:** the **frontend auth slice** (login/signup pages + axios instance that calls these
+endpoints and auto-refreshes on 401), or **Phase 2 (Pantry)** on the backend. Both are unblocked.
 
 > **Known issue (non-blocking):** `npm audit` reports 3 high-severity advisories in `multer`
 > (transitive via `@nestjs/platform-express`), DoS-on-upload only. PantryChef has no upload
@@ -68,7 +90,7 @@ See build-plan.md for the full per-phase breakdown.
 
 - [~] Phase 0 — Foundation (frontend scaffold + tokens + fonts done; route groups, axios
   instance, backend scaffold, and Prisma schema pending)
-- [ ] Phase 1 — Authentication
+- [x] Phase 1 — Authentication (backend: register/login/refresh/logout/me, rotation, guards)
 - [ ] Phase 2 — Pantry Management
 - [ ] Phase 3 — User Preferences
 - [ ] Phase 4 — AI Recipe Generation
@@ -102,16 +124,14 @@ See build-plan.md for the full per-phase breakdown.
 _Add notes here as the build progresses — workarounds, patterns, anything that differs from
 the context files._
 
-> **Backend conventions documented, not yet applied.** architecture.md, code-standards.md, and
-> library-docs.md now describe the production-grade structure (four layers: `config/` /
-> `common/` / `prisma/` / `modules/`; thin controllers + fat services; DTO/entity contracts;
-> the module boundary rule) and required hardening (boot-time config validation, global
-> `JwtAuthGuard` + `@Public`/`@CurrentUser`, `PrismaExceptionFilter`, helmet, `@nestjs/throttler`,
-> nestjs-pino + `LoggingInterceptor`, `enableShutdownHooks`, unit + e2e tests). The **current
-> scaffold is still the lighter foundation**: `health/` is flat under `src/`, there is no
-> `config/` layer, and no feature modules exist. Apply the structure + hardening as the feature
-> phases land. Deps for the hardening (helmet, @nestjs/throttler, nestjs-pino, @nestjs/jwt,
-> @nestjs/passport, passport-jwt, bcryptjs, pino-pretty) are already installed.
+> **Backend conventions — now applied (Phase 1).** The four-layer structure (`config/` /
+> `common/` / `prisma/` / `modules/`), boot-time config validation, global `JwtAuthGuard` +
+> `@Public`/`@CurrentUser`, `PrismaExceptionFilter`, helmet, `@nestjs/throttler`, and
+> `enableShutdownHooks` are implemented as of the auth slice. **Still pending** from the
+> documented hardening: structured **nestjs-pino logging + `LoggingInterceptor`** (deps
+> installed, not yet wired — on the default Nest logger), the **entity/`@Exclude` output layer**
+> (services currently use a `SAFE_USER_SELECT` instead), and the **unit + e2e test suite**. Wire
+> these as the feature phases land.
 
 > **tailwind-merge / custom type scale:** `cn()` in `src/shared/lib/utils.ts` registers the
 > custom `text-*` size tokens with `extendTailwindMerge` so size classes (`text-h2`) are not

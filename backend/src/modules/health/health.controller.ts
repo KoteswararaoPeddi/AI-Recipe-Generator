@@ -1,10 +1,15 @@
 import { Controller, Get } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Public } from "../../common/decorators/public.decorator";
+import { PrismaService } from "../../prisma/prisma.service";
 
+@ApiTags("Health")
 @Controller("health")
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Public()
+  @ApiOperation({ summary: "Health check", description: "Liveness + DB connectivity." })
   @Get()
   async check(): Promise<{ message: string; data: { status: string; db: string } }> {
     let db = "up";

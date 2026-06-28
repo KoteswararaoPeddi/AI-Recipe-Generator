@@ -38,13 +38,17 @@ interface and replace it the moment the endpoint lands.
 
 ## Phase 1 — Authentication (everything else depends on this)
 
-- [ ] Backend `auth` module: register + login (bcryptjs hash/compare), JWT issue/verify,
-      `/auth/refresh`, `/auth/logout`; `JwtStrategy` (cookie extractor) + global `JwtAuthGuard`
-      with a `@Public()` opt-out
-- [ ] HTTP-only cookies for access + refresh tokens
+- [x] Backend `auth` module: register + login (bcryptjs hash/compare), JWT issue/verify,
+      `/auth/refresh` (+ `JwtRefreshGuard`), `/auth/logout`, `/auth/me`; `JwtStrategy` +
+      `JwtRefreshStrategy` (cookie extractors) + global `JwtAuthGuard` with a `@Public()` opt-out
+- [x] HTTP-only cookies for access + refresh tokens; **DB-backed refresh-token rotation**
+      (hashed token on `User`; reuse + post-logout refresh both rejected with 403)
+- [x] Verified (curl): register 201 / dup 409 / bad email 400 / wrong password 401 /
+      no-cookie 401 / me 200 / refresh rotates / reuse 403 / logout then refresh 403
 - [ ] Frontend `(auth)` pages: login + signup forms (RHF + Zod), `auth.service`, `auth.store`
+- [ ] Shared axios instance with the 401 → refresh → replay interceptor
 - [ ] `(app)` layout guards the session; unauthenticated users redirect to `/login`
-- [ ] Verified: sign up → log in → protected page → refresh on expiry → log out
+- [ ] Verified end to end through the UI: sign up → log in → protected page → refresh → log out
 
 ---
 

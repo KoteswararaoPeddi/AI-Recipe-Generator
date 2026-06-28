@@ -61,11 +61,12 @@ enum RecipeSource {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String
+  hashedRefreshToken String? // bcrypt hash of the current refresh token; null = logged out
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   preference     Preference?
   pantryItems    PantryItem[]
