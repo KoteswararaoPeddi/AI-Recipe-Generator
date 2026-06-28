@@ -99,6 +99,154 @@ Follow these every session — they prevent pattern drift. See architecture.md f
 
 ---
 
+## Frontend Performance & Rendering
+
+Learn these in **layers** — foundational habits first, advanced optimizations last. Follow them
+in order: the early layers prevent most performance problems before the later ones ever matter.
+Some rules are detailed in other sections (cross-referenced). The bundled Next.js docs
+(`node_modules/next/dist/docs/`, currently **16.2.7**) outrank memory — re-read the relevant
+guide before using a version-specific API (per AGENTS.md).
+
+### Layer 1 — Write good code by default (habits)
+
+The defaults that prevent most performance problems before they start. Make them reflexes.
+
+- **Server Components by default; `"use client"` is the exception** — add it only when a
+  component needs state/effects, event handlers, browser APIs, or a client-only library. Server
+  Components ship **zero JS**. (See architecture.md → Rendering & Data Flow.)
+- **Keep `"use client"` boundaries small** — push them as low as possible; extract the
+  interactive leaf (the button), don't make the whole page client.
+  `Page(server) → PantryTable(server) → AddItemButton(client)`.
+- **Small, single-responsibility, reusable components** — no 800-line `Dashboard.tsx`; split
+  into `Header`, `Stats`, `Chart`, … one job, one reason to change. Pages/layouts stay thin.
+- **Business logic out of JSX** — extract a 100-line `onClick` into a handler/hook/service.
+  Components are **pure and props-driven**. (See Split for Logic & Content, Reuse Before Creating.)
+- **Fetch data on the server** when appropriate (async Server Components / services), not in
+  `useEffect`. **Don't fetch the same data repeatedly** — fetch once and pass down (see Layers 3–4).
+- **`next/image`, `next/font`, `next/script`** — built-in asset optimizations (no CLS, no FOUT,
+  scripts off the main thread). Mark only above-the-fold images `priority`.
+- **Dynamic-import heavy UI** — `next/dynamic` for the recharts chart, maps, editors, PDF, AI
+  chat; load heavy libs on demand with `import()`. Keep them out of first paint.
+- **Avoid unnecessary/large dependencies** — can native JS / Next / shadcn already do it? Prefer
+  narrow imports (`import { Soup } from "lucide-react"`), never `import *` / barrels.
+- **Keep state local** — `useState` where it's used; lift only when shared; global store
+  (Zustand) for cross-cutting only, with **narrow selectors**. Don't put fast-changing values in
+  **Context**. **Avoid prop drilling** (prefer composition).
+- **Stable list keys** (never the array index); `memo`/`useMemo`/`useCallback` only with a
+  measured reason (React 19's compiler reduces the need).
+- **Clean-code hygiene** — name things well; focused files (`date.ts`/`currency.ts`, not a
+  catch-all `utils.ts`); **never expose secrets** to the browser; **never an empty `catch`**.
+
+> Follow Layer 1 consistently and you avoid most common performance issues. The rest is for when
+> measurement (Layer 6) shows you actually need it.
+
+### Layer 2 — Understand how Next.js renders
+
+- **`"use client"` is transitive for imports, not for children.** Once a module has
+  `"use client"`, everything it *imports and directly renders* joins the client bundle:
+  ```tsx
+  "use client";
+  import Header from "./Header"; // → client bundle
+  import Button from "./Button"; // → client bundle
+  ```
+  But a Server Component passed as **children** stays on the server — it's passed in, not
+  imported and rendered inside the boundary:
+  ```tsx
+  <ClientLayout>
+    <ServerProducts /> {/* stays a Server Component */}
+  </ClientLayout>
+  ```
+  Use this children-slot pattern to keep server UI inside a client shell.
+- **Context isn't available in Server Components** — put providers in a `"use client"` component
+  that takes `children`, rendered **as deep as possible** (wrap `{children}`, not the whole
+  document) so static server parts stay optimizable.
+- **`server-only` / `client-only`** — import `server-only` in any module holding secrets/DB
+  access so it can't be pulled into the client bundle (build-time error). Only `NEXT_PUBLIC_`
+  env vars reach the browser; others become `""`.
+- **Request-time APIs opt the route into Dynamic Rendering** — `cookies()`, `headers()`,
+  `searchParams` make the route dynamic (the whole app if used in the root layout). Use
+  intentionally; wrap in `<Suspense>`.
+
+### Layer 3 — Understand caching (the biggest recent change)
+
+Caching behavior has changed across Next.js releases — **verify against the version you're on**;
+the bundled docs are the source of truth.
+
+- **`fetch` is NOT cached by default** in Next 16, and an uncached fetch **blocks render** until
+  it resolves. Opt in deliberately.
+- **Cache Components / `use cache`** (enable `cacheComponents: true` in `next.config.ts`): put
+  `"use cache"` atop an async data function (data-level) or a component/page (UI-level); set
+  duration with `cacheLife(...)`; arguments + closed-over values form the cache key. (Not using
+  Cache Components → follow the "previous model" caching guide.)
+- **Per-request dedup** — identical `fetch` calls are auto-memoized within one render; wrap
+  non-`fetch` data (Prisma/ORM) in **`React.cache`** so repeated calls in a request share a
+  result. Scoped to a single request.
+
+### Layer 4 — Avoid waterfalls
+
+This one habit can cut seconds off load time. **The decision rule:**
+
+- **Sequential** (`await` one after another) **only when the next call depends on the previous
+  result.**
+- **Parallel** (`Promise.all`) **when the calls are independent.**
+
+A waterfall is sequential `await`s on calls that *don't* depend on each other — that's the bug.
+Sequential is correct when there's a genuine data dependency (e.g. you need the artist before you
+can fetch their albums).
+
+```tsx
+// Bad — independent calls run sequentially (a needless waterfall)
+const user = await getUser();
+const orders = await getOrders();
+const cart = await getCart();
+
+// Good — independent calls start together
+const [user, orders, cart] = await Promise.all([getUser(), getOrders(), getCart()]);
+
+// Correct sequential — the second call genuinely needs the first's result
+const artist = await getArtist(username);
+const albums = await getAlbums(artist.id);
+```
+
+- Use **`Promise.allSettled`** when one request may fail and you don't want to lose the others.
+- Layouts and pages already render in parallel; the waterfall to kill is **independent
+  `await`s placed one after another inside a single component**.
+- **Don't call a Route Handler from a Server Component** — needless extra server hop; call the
+  data function / DB directly. Route Handlers are for *Client* Components.
+
+### Layer 5 — Streaming
+
+Send UI progressively instead of blocking on the slowest data — users perceive the app as much
+faster (header + sidebar render, products stream in).
+
+```tsx
+<Suspense fallback={<Loading />}>
+  <Products /> {/* streams in; the rest of the page shows immediately */}
+</Suspense>
+```
+
+- **`loading.js`** wraps a route segment in `<Suspense>` automatically — but a **layout** that
+  reads uncached/runtime data **blocks navigation** instead of showing it; wrap that access in
+  its own `<Suspense>` or move it into `page.js`.
+- **Stream server→client with the `use` API** — pass an *unawaited* promise from a Server
+  Component to a Client Component and read it with `use()` inside `<Suspense>`. Don't `await` in
+  a layout if you can hand the promise down.
+- **`<Link>` auto-prefetches** routes entering the viewport; for client navigations that still
+  feel slow, export `unstable_instant` from the route.
+
+### Layer 6 — Measure before optimizing
+
+```
+Write → Measure → Find the bottleneck → Optimize → Measure again
+```
+
+- **Build → measure → optimize what matters.** Don't spend two hours saving 5 KB, and don't
+  guess. Use Lighthouse, React DevTools Profiler, `@next/bundle-analyzer`, and Core Web Vitals
+  (LCP / CLS / INP); send Web Vitals to analytics with `useReportWebVitals`. Optimize the slow
+  path the tools actually flag, then re-measure.
+
+---
+
 ## Backend (NestJS) — production-grade conventions
 
 ### Four-layer structure
