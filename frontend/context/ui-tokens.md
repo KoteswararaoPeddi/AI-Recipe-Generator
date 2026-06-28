@@ -1,12 +1,14 @@
 # UI Tokens
 
 Design tokens for **PantryChef**, defined in `frontend/src/shared/styles/theme.css`
-(imported by `app/globals.css`). The palette is an **emerald-teal** primary on a
-**charcoal-black** neutral base — a fresh, modern dark aesthetic that suits a cooking app.
-Use these exact tokens throughout; never hardcode hex or use raw Tailwind color classes.
+(imported by `app/globals.css`). The palette is an **emerald-teal** primary on a **light
+neutral** base (white surfaces, slate text) — a clean, modern light UI. Use these exact tokens
+throughout; never hardcode hex or use raw Tailwind color classes.
 
 > Source of truth: `src/shared/styles/theme.css`. If a token changes there, update this file.
-> The app is **dark only** — `:root` *is* the active (dark) theme.
+> The app is **light by default** — `:root` holds the **light** theme. A `.dark` block exists
+> as an override (not currently activated; there's no theme toggle/`next-themes` wired). The
+> resolved values in the tables below are the **light** values.
 
 ---
 
@@ -50,28 +52,28 @@ For conditional/merged classes, always use `cn` from `@lib/utils`.
 
 ## Semantic Tokens (use these in components)
 
-The active theme is dark. Values below are the resolved dark values.
+The active theme is **light**. Values below are the resolved light values.
 
 | Role                 | Utility examples                                | Value (via palette)              |
 | -------------------- | ----------------------------------------------- | -------------------------------- |
 | Primary (brand)      | `bg-primary` `text-primary` `border-primary`    | emerald-teal-500 `#20b286`       |
 | Primary hover        | `bg-primary-hover`                              | emerald-teal-600 `#17936f`       |
-| Primary subtle       | `bg-primary-subtle`                             | emerald-teal-100 `#d5f5eb`       |
+| Primary subtle       | `bg-primary-subtle`                             | emerald-teal-50 `#eefbf7` (light mint) |
 | On-primary text      | `text-primary-fg`                               | `#ffffff`                        |
-| Secondary            | `bg-secondary` `text-secondary`                 | charcoal-black-900 `#0f1418`     |
+| Secondary            | `bg-secondary` `text-secondary`                 | neutral-100 `#f1f5f9` (text neutral-900) |
 | Danger / destructive | `bg-danger` / `bg-destructive`                  | red-600 `#dc2626`                |
 | Warning              | `bg-warning`                                    | amber-500 `#f59e0b`              |
 | Success              | `bg-success`                                    | green-600 `#16a34a`              |
 | Info                 | `bg-info`                                       | blue-600 `#2563eb`               |
-| Page background      | `bg-background`                                 | charcoal-black-900 `#0f1418`     |
-| Surface / card       | `bg-surface` / `bg-card`                        | `#1a2329`                        |
-| Raised / muted       | `bg-surface-raised` / `bg-muted`                | a step above `surface`           |
-| Foreground text      | `text-foreground` / `text-card-foreground`      | near-white (neutral-50 `#f8fafc`)|
+| Page background      | `bg-background`                                 | neutral-50 `#f8fafc` (light)     |
+| Surface / card       | `bg-surface` / `bg-card`                        | white `#ffffff`                  |
+| Raised / muted       | `bg-surface-raised` / `bg-muted`                | neutral-100 `#f1f5f9`            |
+| Foreground text      | `text-foreground` / `text-card-foreground`      | near-black (neutral-900 `#0f172a`)|
 | Muted text           | `text-muted-foreground`                         | mid-grey (neutral-500)           |
 | Subtle text          | `text-subtle-foreground`                        | lighter grey (neutral-400)       |
-| Border               | `border-border`                                 | `#242b32`                        |
-| Strong border        | `border-border-strong`                          | a step above `border`            |
-| Input border         | `border-input`                                  | matches the dark border          |
+| Border               | `border-border`                                 | neutral-200 `#e2e8f0`            |
+| Strong border        | `border-border-strong`                          | neutral-300                      |
+| Input border         | `border-input`                                  | neutral-200                      |
 | Focus ring           | `ring-ring` / `outline-ring`                    | emerald-teal (primary)           |
 
 Each colored role also has `-hover`, `-subtle`, and `-fg` variants (e.g. `bg-danger-subtle`,
@@ -116,16 +118,17 @@ custom `text-*` size token, that token must be registered in the `extendTailwind
 
 ---
 
-## Theme — Dark Only
+## Theme — Light by Default
 
-PantryChef ships a **single dark theme**. `:root` holds the dark surfaces and text
-(`--background` charcoal-black-900 `#0f1418`, `--surface` `#1a2329`, `--border` `#242b32`,
-`--foreground` near-white). There is **no light mode, no theme toggle, and no `next-themes`**.
+PantryChef ships a **light theme by default**. `:root` holds the light surfaces and text
+(`--background` neutral-50 `#f8fafc`, `--surface`/`--card` white `#ffffff`, `--border`
+neutral-200 `#e2e8f0`, `--foreground` near-black neutral-900). A **`.dark` block** in
+`theme.css` overrides the same semantic vars with dark values — it's the future dark theme,
+but **no toggle/`next-themes` is wired**, so the app renders light (no `.dark` class on `html`).
 
-A `@custom-variant dark (&:is(.dark *))` is declared in `globals.css` so any `dark:` utilities
-still resolve, but the app does not toggle themes — every surface should simply use the
-semantic tokens and render correctly on the dark base. Do not introduce light-only colours or
-a toggle.
+A `@custom-variant dark (&:is(.dark *))` is declared in `globals.css` so `dark:` utilities still
+resolve under a `.dark` ancestor. Build with the **semantic tokens** so a component renders
+correctly in either theme — never hardcode a light- or dark-specific colour.
 
 ---
 
@@ -135,8 +138,11 @@ a toggle.
   doesn't fit). The one sanctioned hex path is a data-driven decorative colour applied via
   `style={{ … }}` (component chrome still uses tokens).
 - Never use raw Tailwind color classes (`bg-emerald-500`, `text-gray-400`) — only project tokens.
-- Primary brand is emerald-teal (`primary`); `secondary` is charcoal-black. Don't swap in
+- Primary brand is emerald-teal (`primary`); `secondary` is a light neutral. Don't swap in
   Tailwind's built-in green/teal scales.
+- The app is **light by default**. Use semantic tokens so components render correctly in
+  either theme; don't author a light- or dark-only colour. The decorative dashboard icon wells
+  use `bg-{primary,info}/10` plus the `purple-500` foundation scale (a sanctioned one-off).
 - Borders default to `border-border`; use `border-strong` for stronger edges, `border-input`
   for form fields. Never `border-gray-*`.
 - Prefer semantic tokens over raw palette utilities; reach for a raw scale

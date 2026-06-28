@@ -317,6 +317,25 @@ Every domain folder has the same shape: `*.module.ts`, `*.controller.ts`, `*.ser
 
 ---
 
+## UI components — install shadcn, don't hand-roll; text uses Typography
+
+- **If shadcn/ui provides it, install it — never hand-write it.** For any standard UI primitive
+  shadcn offers (`dialog`, `select`, `checkbox`, `dropdown-menu`, `popover`, `table`, `tabs`,
+  `tooltip`, `sheet`, `radio-group`, `switch`, …) add it with the CLI:
+  ```bash
+  npx shadcn@latest add dialog select checkbox
+  ```
+  It lands in `src/shared/components/ui/` in the project's style (`components.json`). **Do not
+  re-implement a component shadcn already provides** (no hand-rolled modal/select/checkbox/dropdown).
+- **Only build by hand** when shadcn has no equivalent: feature composites (`PantryItemCard`,
+  `RecipeCard`, `AddItemDialog`) or genuinely custom widgets. Compose those from the installed
+  shadcn primitives.
+- **All text goes through `Typography`** (`@components/ui/typography`) using its `variant`/`weight`
+  props — not raw `text-*` size classes in feature/page code. Colour and layout stay on
+  `className`. The custom `text-*` size scale exists for the Typography component to consume.
+
+---
+
 ## Reuse Before Creating
 
 1. **Search first** — grep `src/shared/components/ui`, `src/shared/components`,

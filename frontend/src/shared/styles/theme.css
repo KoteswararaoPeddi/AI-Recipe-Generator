@@ -181,17 +181,17 @@
       No Tailwind utilities yet, just named CSS vars.
    ============================================================ */
 :root {
-  /* Primary */
+  /* Primary (emerald-teal — matches the design's green) */
   --primary:                var(--color-emerald-teal-500);
   --primary-hover:          var(--color-emerald-teal-600);
-  --primary-subtle:         var(--color-emerald-teal-950);
+  --primary-subtle:         var(--color-emerald-teal-50);
   --primary-fg:             #ffffff;
 
-  /* Secondary */
-  --secondary:              var(--color-charcoal-black-800);
-  --secondary-hover:        var(--color-charcoal-black-700);
-  --secondary-subtle:       var(--color-charcoal-black-950);
-  --secondary-fg:           #ffffff;
+  /* Secondary (light neutral) */
+  --secondary:              var(--color-neutral-100);
+  --secondary-hover:        var(--color-neutral-200);
+  --secondary-subtle:       var(--color-neutral-50);
+  --secondary-fg:           var(--color-neutral-900);
 
   /* Danger */
   --danger:                 var(--color-red-600);
@@ -217,23 +217,23 @@
   --info-subtle:            var(--color-blue-50);
   --info-fg:                #ffffff;
 
-  /* Surfaces */
-  --background:             var(--color-charcoal-black-900);
-  --surface:                #1a2329;
-  --surface-raised:         var(--color-charcoal-black-800);
-  --surface-overlay:        var(--color-charcoal-black-700);
+  /* Surfaces (light) */
+  --background:             var(--color-neutral-50);
+  --surface:                #ffffff;
+  --surface-raised:         var(--color-neutral-100);
+  --surface-overlay:        #ffffff;
 
-  /* Borders */
-  --border:                 #242b32;
-  --border-strong:          var(--color-charcoal-black-700);
-  --input:                  var(--color-charcoal-black-700);
+  /* Borders (light) */
+  --border:                 var(--color-neutral-200);
+  --border-strong:          var(--color-neutral-300);
+  --input:                  var(--color-neutral-200);
   --ring:                   var(--color-emerald-teal-500);
   --radius:                 0.625rem;
 
-  /* Text */
-  --foreground:             var(--color-neutral-50);
-  --muted-foreground:       var(--color-neutral-400);
-  --subtle-foreground:      var(--color-neutral-500);
+  /* Text (light) */
+  --foreground:             var(--color-neutral-900);
+  --muted-foreground:       var(--color-neutral-500);
+  --subtle-foreground:      var(--color-neutral-400);
   --on-primary:             #ffffff;
 
   /* shadcn component aliases — point to our semantic vars above */

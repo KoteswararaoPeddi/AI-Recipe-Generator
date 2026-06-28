@@ -10,9 +10,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Koti | Frontend Developer",
+  title: "PantryChef | AI Recipe Generator",
   description:
-    "Frontend Developer specializing in React, Next.js, TypeScript, and modern web technologies. Explore my projects, skills, and professional experience.",
+    "Track your pantry and generate recipes with AI, tailored to your diet and cuisine.",
 };
 
 export default function RootLayout({
