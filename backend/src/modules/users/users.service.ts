@@ -1,15 +1,24 @@
-import { Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { User } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+
 import { PrismaService } from "../../prisma/prisma.service";
+
+const BCRYPT_ROUNDS = 12;
 
 /** The user fields safe to return to clients — never passwordHash / hashedRefreshToken. */
 export const SAFE_USER_SELECT = {
   id: true,
   email: true,
+  name: true,
   createdAt: true,
 } as const;
 
-export type SafeUser = Pick<User, "id" | "email" | "createdAt">;
+export type SafeUser = Pick<User, "id" | "email" | "name" | "createdAt">;
 
 @Injectable()
 export class UsersService {
@@ -44,5 +53,35 @@ export class UsersService {
       where: { id },
       data: { hashedRefreshToken },
     });
+  }
+
+  /** Updates the editable profile fields. Email uniqueness is enforced by the DB (→ 409). */
+  updateProfile(
+    id: string,
+    data: { name?: string; email?: string },
+  ): Promise<SafeUser> {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: SAFE_USER_SELECT,
+    });
+  }
+
+  /** Verifies the current password before setting a new hash. */
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new UnauthorizedException("Not authenticated.");
+    }
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new BadRequestException("Current password is incorrect.");
+    }
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
   }
 }

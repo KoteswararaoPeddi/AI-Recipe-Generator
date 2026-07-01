@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import {  Poppins } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+
+import { GlobalHosts } from "@shared/components/GlobalHosts";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -24,7 +25,7 @@ export default function RootLayout({
     <html lang="en" className={`${poppins.variable} h-full scroll-smooth scroll-pt-20 antialiased`}>
       <body className="min-h-full">
         {children}
-        <Analytics />
+        <GlobalHosts />
       </body>
     </html>
   );

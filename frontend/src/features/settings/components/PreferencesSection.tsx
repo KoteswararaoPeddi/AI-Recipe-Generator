@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Save } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@lib/utils"
 import { Button } from "@components/ui/button"
 import { Input } from "@components/ui/input"
+import { Skeleton } from "@components/ui/skeleton"
 import { Slider } from "@components/ui/slider"
 import { Typography } from "@components/ui/typography"
+import { getErrorMessage } from "@lib/get-error-message"
 import { CUISINES, DIETS } from "@features/generator/constants"
 
+import { getPreferences, updatePreferences } from "../api/settings.service"
 import { SettingsCard } from "./SettingsCard"
 
 const pill = (active: boolean) =>
@@ -35,18 +38,89 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function PreferencesSection() {
-  const [restrictions, setRestrictions] = useState<string[]>(["Vegetarian"])
+  const [restrictions, setRestrictions] = useState<string[]>([])
   const [allergies, setAllergies] = useState("")
-  const [cuisine, setCuisine] = useState("Mexican")
+  const [cuisine, setCuisine] = useState("Any")
   const [servings, setServings] = useState(4)
   const [unit, setUnit] = useState<string>("metric")
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    getPreferences()
+      .then((prefs) => {
+        if (!active) return
+        setRestrictions(prefs.dietaryRestrictions)
+        setAllergies(prefs.allergies)
+        setCuisine(prefs.preferredCuisine)
+        setServings(prefs.defaultServings)
+        setUnit(prefs.measurementUnit)
+      })
+      .catch((error) => toast.error(getErrorMessage(error)))
+      .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [])
 
   const toggleRestriction = (diet: string) =>
     setRestrictions((prev) =>
       prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet]
     )
 
-  const save = () => toast.success("Preferences saved")
+  const save = async () => {
+    setSaving(true)
+    const id = toast.loading("Saving preferences...")
+    try {
+      await updatePreferences({
+        dietaryRestrictions: restrictions,
+        allergies,
+        preferredCuisine: cuisine,
+        defaultServings: servings,
+        measurementUnit: unit,
+      })
+      toast.success("Preferences saved", { id })
+    } catch (error) {
+      toast.error(getErrorMessage(error), { id })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <SettingsCard title="Dietary Preferences">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-36" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-24 rounded-lg" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-9 w-full rounded-lg" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-20 rounded-lg" />
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-12 rounded-lg" />
+            <Skeleton className="h-12 rounded-lg" />
+          </div>
+          <Skeleton className="h-9 w-40 rounded-lg" />
+        </div>
+      </SettingsCard>
+    )
+  }
 
   return (
     <SettingsCard title="Dietary Preferences">
@@ -132,9 +206,9 @@ export function PreferencesSection() {
           </div>
         </div>
 
-        <Button onClick={save} className="w-fit">
+        <Button onClick={save} disabled={saving} className="w-fit">
           <Save className="size-4" />
-          Save Preferences
+          {saving ? "Saving..." : "Save Preferences"}
         </Button>
       </div>
     </SettingsCard>

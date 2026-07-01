@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Button } from "@components/ui/button"
 import { Field } from "@components/ui/field"
 import { Input } from "@components/ui/input"
+import { PasswordInput } from "@components/ui/password-input"
 import { getErrorMessage } from "@lib/get-error-message"
 import { useAuthStore } from "@shared/stores/auth.store"
 
@@ -54,9 +55,8 @@ export function LoginForm() {
       </Field>
 
       <Field label="Password" htmlFor="password" error={errors.password?.message}>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           placeholder="Your password"
           aria-invalid={Boolean(errors.password)}

@@ -133,14 +133,14 @@ interface and replace it the moment the endpoint lands.
 
 | Phase                       | Status      |
 | --------------------------- | ----------- |
-| 0 — Foundation              | In progress |
-| 1 — Authentication          | Not started |
-| 2 — Pantry Management       | Not started |
-| 3 — User Preferences        | Not started |
-| 4 — AI Recipe Generation    | Not started |
-| 5 — Recipe View             | Not started |
-| 6 — Recipe Collection       | Not started |
-| 7 — Meal Planner            | Not started |
-| 8 — Shopping List           | Not started |
-| 9 — Polish                  | Not started |
+| 0 — Foundation              | Done        |
+| 1 — Authentication          | Done        |
+| 2 — Pantry Management       | Done        |
+| 3 — User Preferences        | Done        |
+| 4 — AI Recipe Generation    | Done (live Gemini, verified) |
+| 5 — Recipe View             | Done        |
+| 6 — Recipe Collection       | Done        |
+| 7 — Meal Planner            | Done        |
+| 8 — Shopping List           | Done        |
+| 9 — Polish                  | Partial (states/toasts done; a11y/responsive pass pending) |
 </content>

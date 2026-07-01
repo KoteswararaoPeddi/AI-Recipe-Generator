@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 
 import { Typography } from "@components/ui/typography"
 import { MealPlannerView } from "@features/meal-planner/components/MealPlannerView"
-import { SAVED_RECIPES } from "@features/recipes/data/recipes.data"
 
 export const metadata: Metadata = { title: "Meal Plan | PantryChef" }
 
@@ -18,7 +17,7 @@ export default function MealPlanPage() {
         </Typography>
       </div>
 
-      <MealPlannerView recipes={SAVED_RECIPES} />
+      <MealPlannerView />
     </div>
   )
 }

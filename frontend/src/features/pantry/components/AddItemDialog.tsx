@@ -2,7 +2,9 @@
 
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 
+import { getErrorMessage } from "@lib/get-error-message"
 import { Button } from "@components/ui/button"
 import { Checkbox } from "@components/ui/checkbox"
 import {
@@ -23,13 +25,14 @@ import {
 } from "@components/ui/select"
 import { Typography } from "@components/ui/typography"
 
+import type { NewPantryItem } from "../api/pantry.service"
 import { addPantryItemSchema, type AddPantryItemValues } from "../schemas/pantry.schema"
-import { PANTRY_CATEGORIES, PANTRY_UNITS, type PantryItem } from "../types/pantry.types"
+import { PANTRY_CATEGORIES, PANTRY_UNITS } from "../types/pantry.types"
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (item: PantryItem) => void
+  onAdd: (input: NewPantryItem) => Promise<void> | void
 }
 
 export function AddItemDialog({ open, onOpenChange, onAdd }: Props) {
@@ -38,7 +41,7 @@ export function AddItemDialog({ open, onOpenChange, onAdd }: Props) {
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<AddPantryItemValues>({
     resolver: zodResolver(addPantryItemSchema),
     defaultValues: {
@@ -51,18 +54,21 @@ export function AddItemDialog({ open, onOpenChange, onAdd }: Props) {
     },
   })
 
-  const onSubmit = (values: AddPantryItemValues) => {
-    onAdd({
-      id: crypto.randomUUID(),
-      name: values.name,
-      category: values.category,
-      quantity: values.quantity,
-      unit: values.unit,
-      expiryDate: values.expiryDate || undefined,
-      runningLow: values.runningLow,
-    })
-    reset()
-    onOpenChange(false)
+  const onSubmit = async (values: AddPantryItemValues) => {
+    try {
+      await onAdd({
+        name: values.name,
+        category: values.category,
+        quantity: values.quantity,
+        unit: values.unit,
+        expiryDate: values.expiryDate || undefined,
+        runningLow: values.runningLow,
+      })
+      reset()
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
   }
 
   return (
@@ -158,7 +164,9 @@ export function AddItemDialog({ open, onOpenChange, onAdd }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add Item</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Item"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

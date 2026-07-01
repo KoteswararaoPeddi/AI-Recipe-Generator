@@ -2,7 +2,9 @@
 
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 
+import { getErrorMessage } from "@lib/get-error-message"
 import { Button } from "@components/ui/button"
 import {
   Dialog,
@@ -24,13 +26,14 @@ import { Typography } from "@components/ui/typography"
 
 import { MEASUREMENT_UNITS } from "@shared/constants/units"
 
+import type { NewShoppingItem } from "../api/shopping.service"
 import { addShoppingItemSchema, type AddShoppingItemValues } from "../schemas/shopping.schema"
-import { SHOPPING_CATEGORIES, type ShoppingItem } from "../types/shopping.types"
+import { SHOPPING_CATEGORIES } from "../types/shopping.types"
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (item: ShoppingItem) => void
+  onAdd: (input: NewShoppingItem) => Promise<void> | void
 }
 
 export function AddShoppingItemDialog({ open, onOpenChange, onAdd }: Props) {
@@ -39,22 +42,25 @@ export function AddShoppingItemDialog({ open, onOpenChange, onAdd }: Props) {
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<AddShoppingItemValues>({
     resolver: zodResolver(addShoppingItemSchema),
     defaultValues: { name: "", quantity: 1, unit: "Pieces", category: "Other" },
   })
 
-  const onSubmit = (values: AddShoppingItemValues) => {
-    onAdd({
-      id: crypto.randomUUID(),
-      name: values.name,
-      quantity: `${values.quantity} ${values.unit}`,
-      category: values.category,
-      checked: false,
-    })
-    reset()
-    onOpenChange(false)
+  const onSubmit = async (values: AddShoppingItemValues) => {
+    try {
+      await onAdd({
+        name: values.name,
+        category: values.category,
+        quantity: values.quantity,
+        unit: values.unit,
+      })
+      reset()
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
   }
 
   return (
@@ -136,7 +142,9 @@ export function AddShoppingItemDialog({ open, onOpenChange, onAdd }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add Item</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Item"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,43 +1,101 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Clock, Plus, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@lib/utils"
+import { getErrorMessage } from "@lib/get-error-message"
+import { confirm } from "@shared/stores/confirm.store"
 import { Button } from "@components/ui/button"
 import { Typography } from "@components/ui/typography"
+import { listRecipes } from "@features/recipes/api/recipes.service"
 import type { Recipe } from "@features/recipes/types/recipe.types"
 
+import { assignMeal, listMealPlan, removeMeal, type MealEntry } from "../api/meal-plan.service"
 import { MEAL_SLOTS, slotKey, type MealSlot } from "../constants"
 import { formatWeekRange, getWeek, type WeekDay } from "../lib/week"
 import { RecipePickerDialog } from "./RecipePickerDialog"
 
-type Plan = Record<string, Recipe>
+type Plan = Record<string, MealEntry>
 type Target = { day: WeekDay; slot: MealSlot }
 
-export function MealPlannerView({ recipes }: { recipes: Recipe[] }) {
+export function MealPlannerView() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [plan, setPlan] = useState<Plan>({})
   const [target, setTarget] = useState<Target | null>(null)
+  const [recipes, setRecipes] = useState<Recipe[]>([])
 
   const week = useMemo(() => getWeek(weekOffset), [weekOffset])
   const range = formatWeekRange(week)
   const plannedCount = Object.keys(plan).length
 
-  const assign = (recipe: Recipe) => {
+  // Saved-recipe pool for the picker — fetched once.
+  useEffect(() => {
+    let active = true
+    listRecipes()
+      .then((data) => active && setRecipes(data))
+      .catch((error) => active && toast.error(getErrorMessage(error)))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Week entries — refetched whenever the visible week changes.
+  useEffect(() => {
+    let active = true
+    listMealPlan(week[0].iso, week[6].iso)
+      .then((entries) => {
+        if (!active) return
+        const next: Plan = {}
+        for (const entry of entries) {
+          next[slotKey(entry.date, entry.slot as MealSlot)] = entry
+        }
+        setPlan(next)
+      })
+      .catch((error) => active && toast.error(getErrorMessage(error)))
+    return () => {
+      active = false
+    }
+  }, [week])
+
+  const assign = async (recipe: Recipe) => {
     if (!target) return
-    setPlan((prev) => ({ ...prev, [slotKey(target.day.iso, target.slot)]: recipe }))
-    setTarget(null)
-    toast.success(`Added to ${target.day.label} · ${target.slot}`)
+    const { day, slot } = target
+    try {
+      const entry = await assignMeal({ date: day.iso, slot, recipeId: recipe.id })
+      setPlan((prev) => ({ ...prev, [slotKey(entry.date, entry.slot as MealSlot)]: entry }))
+      setTarget(null)
+      toast.success(`Added to ${day.label} · ${slot}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
   }
 
-  const clear = (iso: string, slot: MealSlot) =>
+  // Confirm, then optimistic remove — revert if the request fails.
+  const clear = async (iso: string, slot: MealSlot) => {
+    const key = slotKey(iso, slot)
+    const entry = plan[key]
+    if (!entry) return
+    const ok = await confirm({
+      title: "Remove meal?",
+      description: `Remove "${entry.recipe.title}" from ${slot}?`,
+      confirmLabel: "Remove",
+    })
+    if (!ok) return
+    const previous = plan
     setPlan((prev) => {
       const next = { ...prev }
-      delete next[slotKey(iso, slot)]
+      delete next[key]
       return next
     })
+    try {
+      await removeMeal(entry.id)
+    } catch (error) {
+      setPlan(previous)
+      toast.error(getErrorMessage(error))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -100,7 +158,7 @@ export function MealPlannerView({ recipes }: { recipes: Recipe[] }) {
 
             <div className="space-y-2">
               {MEAL_SLOTS.map(({ slot, icon: Icon }) => {
-                const recipe = plan[slotKey(day.iso, slot)]
+                const recipe = plan[slotKey(day.iso, slot)]?.recipe
                 return (
                   <div key={slot}>
                     <span className="mb-1 flex items-center gap-1.5 text-muted-foreground">

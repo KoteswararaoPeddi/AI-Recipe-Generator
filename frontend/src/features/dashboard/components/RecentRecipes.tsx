@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ChefHat, Clock } from "lucide-react"
 
 import { Card } from "@components/ui/card"
-import type { RecentRecipe } from "../data/dashboard.data"
+import type { RecentRecipe } from "../types/dashboard.types"
 
 export function RecentRecipes({ recipes }: { recipes: RecentRecipe[] }) {
   return (
@@ -14,11 +14,16 @@ export function RecentRecipes({ recipes }: { recipes: RecentRecipe[] }) {
         </Link>
       </div>
 
-      <ul className="flex flex-col gap-1">
-        {recipes.map((recipe) => (
+      {recipes.length === 0 ? (
+        <p className="py-6 text-center text-body-base text-muted-foreground">
+          No saved recipes yet.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {recipes.map((recipe) => (
           <li key={recipe.id}>
             <Link
-              href="/recipes"
+              href={`/recipes/${recipe.id}`}
               className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -32,9 +37,10 @@ export function RecentRecipes({ recipes }: { recipes: RecentRecipe[] }) {
                 </p>
               </div>
             </Link>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   )
 }

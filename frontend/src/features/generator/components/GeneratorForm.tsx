@@ -45,7 +45,7 @@ const pill = (active: boolean) =>
 export function GeneratorForm({ onGenerate, loading }: Props) {
   const [ingredients, setIngredients] = useState<string[]>([])
   const [input, setInput] = useState("")
-  const [usePantry, setUsePantry] = useState(false)
+  const [usePantry, setUsePantry] = useState(true)
   const [cuisine, setCuisine] = useState("Mexican")
   const [diets, setDiets] = useState<string[]>(["Vegetarian"])
   const [servings, setServings] = useState(4)

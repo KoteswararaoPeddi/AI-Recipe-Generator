@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Clock, Minus, Plus, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 
-import { cn } from "@lib/utils"
+import { getErrorMessage } from "@lib/get-error-message"
+import { confirm } from "@shared/stores/confirm.store"
 import { Button } from "@components/ui/button"
 import { Card } from "@components/ui/card"
-import { Checkbox } from "@components/ui/checkbox"
 import { Typography } from "@components/ui/typography"
 
+import { deleteRecipe } from "../api/recipes.service"
 import type { Recipe } from "../types/recipe.types"
 import { scaleAmount } from "../lib/scale-amount"
 import { RecipeTags } from "./RecipeTags"
@@ -32,20 +33,27 @@ function NutritionBox({ value, label }: { value: string; label: string }) {
 export function RecipeDetailView({ recipe }: { recipe: Recipe }) {
   const router = useRouter()
   const [servings, setServings] = useState(recipe.servings)
-  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   const factor = servings / recipe.servings
 
-  const toggle = (index: number) =>
-    setChecked((prev) => {
-      const next = new Set(prev)
-      next.has(index) ? next.delete(index) : next.add(index)
-      return next
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: "Delete recipe?",
+      description: `"${recipe.title}" will be permanently removed.`,
+      confirmLabel: "Delete",
     })
-
-  const handleDelete = () => {
-    toast.success("Recipe removed")
-    router.push("/recipes")
+    if (!ok) return
+    setDeleting(true)
+    const id = toast.loading("Removing recipe...")
+    try {
+      await deleteRecipe(recipe.id)
+      toast.success("Recipe removed", { id })
+      router.push("/recipes")
+    } catch (error) {
+      toast.error(getErrorMessage(error), { id })
+      setDeleting(false)
+    }
   }
 
   return (
@@ -68,6 +76,7 @@ export function RecipeDetailView({ recipe }: { recipe: Recipe }) {
             size="icon"
             aria-label="Delete recipe"
             onClick={handleDelete}
+            disabled={deleting}
             className="shrink-0 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-5" />
@@ -104,62 +113,51 @@ export function RecipeDetailView({ recipe }: { recipe: Recipe }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="p-6 shadow-sm lg:col-span-1">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <Typography variant="h4" weight="semibold" className="text-foreground">
               Ingredients
             </Typography>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Users className="size-4" />
-              <Typography as="span" variant="body-sm">
-                Servings:
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Users className="size-4" />
+                <Typography as="span" variant="body-sm">
+                  Servings:
+                </Typography>
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Decrease servings"
+                disabled={servings <= 1}
+                onClick={() => setServings((s) => Math.max(1, s - 1))}
+              >
+                <Minus className="size-4" />
+              </Button>
+              <Typography
+                variant="body-lg"
+                weight="semibold"
+                className="w-6 text-center text-foreground"
+              >
+                {servings}
               </Typography>
-            </span>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Increase servings"
+                onClick={() => setServings((s) => s + 1)}
+              >
+                <Plus className="size-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Decrease servings"
-              disabled={servings <= 1}
-              onClick={() => setServings((s) => Math.max(1, s - 1))}
-            >
-              <Minus className="size-4" />
-            </Button>
-            <Typography variant="h4" weight="semibold" className="w-8 text-center text-foreground">
-              {servings}
-            </Typography>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Increase servings"
-              onClick={() => setServings((s) => s + 1)}
-            >
-              <Plus className="size-4" />
-            </Button>
-          </div>
-
-          <ul className="mt-5 space-y-3">
+          <ul className="mt-5 space-y-2.5">
             {recipe.ingredients.map((ing, i) => (
-              <li key={i}>
-                <label className="flex cursor-pointer items-start gap-3">
-                  <Checkbox
-                    checked={checked.has(i)}
-                    onCheckedChange={() => toggle(i)}
-                    className="mt-0.5"
-                  />
-                  <Typography
-                    as="span"
-                    variant="body-base"
-                    className={cn(
-                      checked.has(i)
-                        ? "text-muted-foreground line-through"
-                        : "text-foreground"
-                    )}
-                  >
-                    {scaleAmount(ing.amount, factor)} {ing.name}
-                  </Typography>
-                </label>
+              <li key={i} className="flex items-start gap-2">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+                <Typography as="span" variant="body-base" className="text-foreground">
+                  {scaleAmount(ing.amount, factor)} {ing.name}
+                </Typography>
               </li>
             ))}
           </ul>

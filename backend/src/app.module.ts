@@ -9,6 +9,12 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { UsersModule } from "./modules/users/users.module";
+import { PreferencesModule } from "./modules/preferences/preferences.module";
+import { PantryModule } from "./modules/pantry/pantry.module";
+import { RecipesModule } from "./modules/recipes/recipes.module";
+import { MealPlannerModule } from "./modules/meal-planner/meal-planner.module";
+import { ShoppingModule } from "./modules/shopping/shopping.module";
 import { HealthModule } from "./modules/health/health.module";
 
 @Module({
@@ -21,8 +27,12 @@ import { HealthModule } from "./modules/health/health.module";
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     AuthModule,
-    // Feature modules (users/preferences, pantry, recipes, ai, meal-planner, shopping)
-    // are added in their respective build-plan phases.
+    UsersModule,
+    PreferencesModule,
+    PantryModule,
+    RecipesModule,
+    MealPlannerModule,
+    ShoppingModule,
     HealthModule,
   ],
   providers: [

@@ -7,12 +7,59 @@ immediately know what is done, what is in progress, and what is next.
 
 ## Current Status
 
-**Phase:** 1 — Authentication **done** (backend). Frontend is scaffolded; the **backend now
-has the full production structure** (`config/` · `common/` · `prisma/` · `modules/`) and a
-working, verified auth system. No other feature module exists yet. The remaining feature list
-in project-overview.md is the target, not the current state.
+**Phase:** Full-stack **integration complete**. All six feature modules exist on the backend
+(`users`/`preferences`/`pantry`/`recipes`+AI/`meal-planner`/`shopping`), each per-user-scoped and
+verified end to end with curl, and **every frontend page is wired to the real API** (mock data
+layers removed). 27 routes mapped; backend `nest build` + frontend `npm run build` both clean.
+The only gap is a real Gemini key (see Phase 4 note) and a final Phase 9 polish pass.
 
-**Done:**
+**Done (full-stack feature integration — this build):**
+
+- **Schema extended + migrated** (`feature_fields`). Added `User.name`; restructured `Preference`
+  (`dietaryRestrictions[]`, `allergies`, `preferredCuisine`, `defaultServings`, `measurementUnit`);
+  `PantryItem` (`category`, `runningLow`); `Recipe` (`description`, `totalMinutes`, `prepMinutes?`,
+  `cookMinutes?`, `dietTags[]`); `ShoppingItem` (`category`). `@google/genai` installed.
+- **Six backend modules** (thin controller → service → DTOs, all `@CurrentUser("id")`-scoped,
+  ownership-checked updates/deletes via `deleteMany`/`findFirst`, Prisma errors mapped, Swagger):
+  `users` (`PATCH /users/me`, `POST /users/me/password`), `preferences` (`GET`/`PUT`), `pantry`
+  (CRUD), `recipes` (CRUD + `POST /recipes/generate` via Gemini), `meal-planner`
+  (`GET`/`POST`/`DELETE`, week-range query, upsert on `@@unique([userId,date,slot])`), `shopping`
+  (CRUD + `POST /shopping/:id/to-pantry` atomic promotion). A shared `common/enums/enum-maps.ts`
+  converts Prisma enums ↔ frontend labels; `recipes/recipe.mapper.ts` maps the recipe view; AI uses
+  a structured `responseSchema` + defensive normalization and throws a friendly 503 on failure.
+- **Every page wired** via typed axios services (`features/*/api/*.service.ts`) + lightweight
+  `useEffect` fetching: Settings (profile/password/prefs), Pantry, Generate (+ Save), Recipes
+  list + detail, Meal Planner, Shopping. **Loading skeletons, empty states, error toasts, and
+  optimistic delete/toggle** throughout. All mock `data/*.data.ts` files deleted.
+- **Verified end to end (curl)** per slice: preferences round-trip + cuisine mapping; password
+  wrong→400/correct→200; pantry create(date-serialized)/list/delete/404; recipe save(enum+JSON
+  round-trip)/list/get/generate→503/delete; meal-plan assign/list/upsert-idempotent/own-guard→400/
+  remove; shopping create/toggle/**to-pantry → item appears in pantry & leaves list**/delete.
+
+**Done (post-integration UI polish — this build):**
+
+- **Dashboard wired to the API.** `(app)/dashboard` renders a client `DashboardView` that fetches
+  recipes + pantry + this-week meal plan in one `Promise.all` → real stat counts, Recent Recipes
+  (latest 3 → detail), Upcoming Meals (this week); skeletons + empty states. **All `data/*.data.ts`
+  mock files deleted** across the app (dashboard view types moved to `features/dashboard/types/`).
+- **Auth password show/hide.** New reusable `ui/password-input.tsx` (`Input` + eye toggle, forwards
+  `register()`); used on Login + Signup.
+- **UserMenu rebuilt on shadcn `DropdownMenu` + `Avatar`** (CLI-installed). Trigger is avatar-only
+  (no name/chevron/hover bg); panel = avatar + name + email + separator + red Logout.
+- **Top nav centered** (absolute `left-1/2 w-max -translate-x-1/2`; `w-max` prevents label wrap).
+- **Confirm-before-delete** on every delete (Pantry/Recipe card/Recipe detail/Meal slot/Shopping
+  Clear-Checked) via the imperative `confirm()` store + `ConfirmDialog`; its ✕ is hidden via
+  `showCloseButton={false}` (Cancel only). The sonner `<Toaster>` (previously never mounted) +
+  `ConfirmDialogHost` are mounted once via `GlobalHosts` in the root layout.
+- **Generate UX.** "Use pantry" defaults **on**; "New Recipe" **regenerates** with the same inputs;
+  empty-pantry / no-ingredient cases show a message **in the result panel** (frontend pre-check via
+  `listPantry`); the Gemini service no longer retries quota (`429`) errors and returns an accurate
+  "daily limit reached" message; prompt tightened to use only provided/pantry ingredients.
+- **Root layout** got `suppressHydrationWarning` on `<html>`/`<body>` (extension-injected attrs).
+- ⚠️ A "Tomato & Sand" palette was applied then **reverted by the developer** — brand stays
+  **emerald-teal** (`theme.css` unchanged from the light-theme baseline).
+
+**Done (earlier):**
 
 - **Frontend scaffold.** Next.js 16 + React 19 + TypeScript (strict), App Router. Tailwind
   v4 + tw-animate-css; `globals.css` imports `src/shared/styles/theme.css`. shadcn/ui
@@ -184,17 +231,20 @@ frontend `(app)/pantry` page). That makes the first dashboard card real, end to 
 
 See build-plan.md for the full per-phase breakdown.
 
-- [~] Phase 0 — Foundation (frontend scaffold + tokens + fonts done; route groups, axios
-  instance, backend scaffold, and Prisma schema pending)
+- [x] Phase 0 — Foundation (frontend scaffold + tokens + fonts; backend scaffold; Prisma schema)
 - [x] Phase 1 — Authentication (backend: register/login/refresh/logout/me, rotation, guards)
-- [ ] Phase 2 — Pantry Management
-- [ ] Phase 3 — User Preferences
-- [ ] Phase 4 — AI Recipe Generation
-- [ ] Phase 5 — Recipe View
-- [ ] Phase 6 — Recipe Collection
-- [ ] Phase 7 — Meal Planner
-- [ ] Phase 8 — Shopping List
-- [ ] Phase 9 — Polish
+- [x] Phase 2 — Pantry Management (backend CRUD + frontend wired)
+- [x] Phase 3 — User Preferences (+ users profile/password; Settings page wired)
+- [x] Phase 4 — AI Recipe Generation (Gemini 2.5 Flash, structured output; **live & verified**)
+- [x] Phase 5 — Recipe View (detail page wired to `GET /recipes/:id`)
+- [x] Phase 6 — Recipe Collection (list + search/filter + save/delete wired)
+- [x] Phase 7 — Meal Planner (week grid wired to `/meal-plan`)
+- [x] Phase 8 — Shopping List (CRUD + `to-pantry` promotion wired)
+- [~] Phase 9 — Polish (loading/empty/error states + toasts added per feature; full a11y/responsive pass pending)
+
+> *Phase 4 is **live and verified** against Gemini 2.5 Flash (real `GEMINI_API_KEY` set in
+> `backend/.env`). `POST /recipes/generate` returns a real structured recipe; the `GeminiService`
+> retries transient overloads (503/UNAVAILABLE, 429) with backoff before surfacing a friendly 503.
 
 ---
 
@@ -219,6 +269,22 @@ See build-plan.md for the full per-phase breakdown.
 
 _Add notes here as the build progresses — workarounds, patterns, anything that differs from
 the context files._
+
+> **Recipe generation avoids duplicates (generation-aware).** `RecipesService.generate()` now
+> fetches the user's saved recipe **titles** (in parallel with the pantry lookup) and passes them to
+> `buildRecipePrompt(dto, pantryNames, savedTitles)`, which injects a "you already have these — make
+> something genuinely DIFFERENT, don't repeat them" block (titles capped at 40). This is a **strong
+> nudge, not a hard guarantee** (an LLM can still occasionally repeat). **`save()` has no dedup** —
+> a title-collision 409 backstop was deliberately **not** added (reverted by the developer). The AI
+> prompt also already only uses provided/pantry ingredients, and the `GeminiService` retries
+> transient 503s but not quota `429`s (returns a "daily limit reached" message).
+
+> **DB repair (`db push`).** At one point the live `pantrychef` DB had only `users` +
+> `_prisma_migrations` (the 5 feature tables had been dropped while the migration ledger still
+> recorded them as applied — so `migrate status` falsely said "up to date"). Repaired
+> **non-destructively** with `npx prisma db push --skip-generate` (recreated the missing tables,
+> preserved users). For real schema verification use `prisma db pull --print` /
+> `information_schema`, not `migrate status` (which only reads the ledger).
 
 > **Backend conventions — now applied (Phase 1).** The four-layer structure (`config/` /
 > `common/` / `prisma/` / `modules/`), boot-time config validation, global `JwtAuthGuard` +

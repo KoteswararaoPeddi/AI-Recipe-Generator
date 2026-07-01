@@ -13,7 +13,8 @@ export type ShoppingCategory = (typeof SHOPPING_CATEGORIES)[number]
 export type ShoppingItem = {
   id: string
   name: string
-  quantity: string
   category: ShoppingCategory
+  quantity: number
+  unit: string
   checked: boolean
 }

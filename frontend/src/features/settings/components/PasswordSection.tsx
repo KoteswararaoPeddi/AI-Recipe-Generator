@@ -8,7 +8,9 @@ import { toast } from "sonner"
 import { Button } from "@components/ui/button"
 import { Field } from "@components/ui/field"
 import { Input } from "@components/ui/input"
+import { getErrorMessage } from "@lib/get-error-message"
 
+import { changePassword } from "../api/settings.service"
 import { passwordSchema, type PasswordValues } from "../schemas/settings.schema"
 import { SettingsCard } from "./SettingsCard"
 
@@ -23,12 +25,18 @@ export function PasswordSection() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   })
 
-  const onSubmit = async (_values: PasswordValues) => {
+  const onSubmit = async (values: PasswordValues) => {
     const id = toast.loading("Updating password...")
-    // Mock: the change-password endpoint doesn't exist yet (Phase 3 backend).
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    toast.success("Password updated", { id })
-    reset()
+    try {
+      await changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      })
+      toast.success("Password updated", { id })
+      reset()
+    } catch (error) {
+      toast.error(getErrorMessage(error), { id })
+    }
   }
 
   return (

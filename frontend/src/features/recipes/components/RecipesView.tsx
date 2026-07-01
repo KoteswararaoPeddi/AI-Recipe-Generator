@@ -1,10 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Search } from "lucide-react"
 import { toast } from "sonner"
 
+import { getErrorMessage } from "@lib/get-error-message"
+import { confirm } from "@shared/stores/confirm.store"
+import { Card } from "@components/ui/card"
 import { Input } from "@components/ui/input"
+import { Skeleton } from "@components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -14,17 +18,30 @@ import {
 } from "@components/ui/select"
 import { Typography } from "@components/ui/typography"
 
+import { deleteRecipe, listRecipes } from "../api/recipes.service"
 import type { Recipe } from "../types/recipe.types"
 import { RecipeCard } from "./RecipeCard"
 
 const ALL_CUISINES = "All Cuisines"
 const ALL_DIFFICULTIES = "All Difficulties"
 
-export function RecipesView({ recipes: initial }: { recipes: Recipe[] }) {
-  const [recipes, setRecipes] = useState(initial)
+export function RecipesView() {
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
   const [cuisine, setCuisine] = useState(ALL_CUISINES)
   const [difficulty, setDifficulty] = useState(ALL_DIFFICULTIES)
+
+  useEffect(() => {
+    let active = true
+    listRecipes()
+      .then((data) => active && setRecipes(data))
+      .catch((error) => toast.error(getErrorMessage(error)))
+      .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [])
 
   const cuisines = useMemo(
     () => [ALL_CUISINES, ...Array.from(new Set(recipes.map((r) => r.cuisine)))],
@@ -49,9 +66,24 @@ export function RecipesView({ recipes: initial }: { recipes: Recipe[] }) {
     })
   }, [recipes, query, cuisine, difficulty])
 
-  const handleDelete = (id: string) => {
+  // Confirm, then optimistic delete — revert if the request fails.
+  const handleDelete = async (id: string) => {
+    const recipe = recipes.find((r) => r.id === id)
+    const ok = await confirm({
+      title: "Delete recipe?",
+      description: `"${recipe?.title ?? "This recipe"}" will be permanently removed.`,
+      confirmLabel: "Delete",
+    })
+    if (!ok) return
+    const previous = recipes
     setRecipes((prev) => prev.filter((recipe) => recipe.id !== id))
-    toast.success("Recipe removed")
+    try {
+      await deleteRecipe(id)
+      toast.success("Recipe removed")
+    } catch (error) {
+      setRecipes(previous)
+      toast.error(getErrorMessage(error))
+    }
   }
 
   return (
@@ -94,22 +126,60 @@ export function RecipesView({ recipes: initial }: { recipes: Recipe[] }) {
         </div>
       </div>
 
-      <Typography variant="body-sm" className="text-muted-foreground">
-        Showing {filtered.length} of {recipes.length} recipes
-      </Typography>
-
-      {filtered.length > 0 ? (
+      {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} onDelete={handleDelete} />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="flex flex-col overflow-hidden shadow-sm">
+              <Skeleton className="h-44 rounded-none" />
+              <div className="flex flex-1 flex-col gap-3 p-5">
+                <Skeleton className="h-5 w-3/4" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </div>
+                <div className="mt-auto flex items-center justify-between">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+                <Skeleton className="h-px w-full" />
+                <div className="flex gap-3">
+                  <Skeleton className="h-8 flex-1 rounded-lg" />
+                  <Skeleton className="size-8 rounded-lg" />
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
-          <Typography variant="body-lg" className="text-muted-foreground">
-            No recipes match your filters.
+        <>
+          <Typography variant="body-sm" className="text-muted-foreground">
+            Showing {filtered.length} of {recipes.length} recipes
           </Typography>
-        </div>
+
+          {recipes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+              <Typography variant="body-lg" className="text-muted-foreground">
+                You haven&apos;t saved any recipes yet. Generate one to get started.
+              </Typography>
+            </div>
+          ) : filtered.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((recipe) => (
+                <RecipeCard key={recipe.id} recipe={recipe} onDelete={handleDelete} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+              <Typography variant="body-lg" className="text-muted-foreground">
+                No recipes match your filters.
+              </Typography>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

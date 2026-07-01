@@ -1,10 +1,18 @@
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown } from "lucide-react"
+import { LogOut } from "lucide-react"
 
 import { useAuthStore } from "@shared/stores/auth.store"
+import { Avatar, AvatarFallback } from "@components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu"
+import { Typography } from "@components/ui/typography"
 
 import { logout } from "../api/auth.service"
 
@@ -12,9 +20,9 @@ export function UserMenu() {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
   const clearUser = useAuthStore((s) => s.clearUser)
-  const [open, setOpen] = useState(false)
 
-  const initial = user?.email?.[0]?.toUpperCase() ?? "?"
+  const displayName = user?.name?.trim() || user?.email?.split("@")[0] || "Account"
+  const initial = displayName[0]?.toUpperCase() ?? "?"
 
   const onSignOut = async () => {
     try {
@@ -26,38 +34,47 @@ export function UserMenu() {
   }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg p-1 pr-2 transition-colors hover:bg-muted"
-      >
-        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-label-base font-semibold text-primary-foreground">
-          {initial}
-        </span>
-        <span className="hidden max-w-[16ch] truncate text-body-base font-medium text-foreground sm:inline">
-          {user?.email}
-        </span>
-        <ChevronDown className="size-4 text-muted-foreground" />
-      </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger className="rounded-full outline-none">
+        <Avatar className="after:hidden">
+          <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
+            {initial}
+          </AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-border bg-popover p-1 shadow-md">
-            <div className="truncate px-3 py-2 text-body-sm text-muted-foreground">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-64 p-0">
+        <div className="flex items-center gap-3 p-3">
+          <Avatar size="lg" className="after:hidden">
+            <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
+              {initial}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <Typography variant="body-base" weight="semibold" className="truncate text-foreground">
+              {displayName}
+            </Typography>
+            <Typography variant="body-sm" className="truncate text-muted-foreground">
               {user?.email}
-            </div>
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="w-full rounded-md px-3 py-2 text-left text-body-base text-foreground transition-colors hover:bg-muted"
-            >
-              Sign out
-            </button>
+            </Typography>
           </div>
-        </>
-      )}
-    </div>
+        </div>
+
+        <DropdownMenuSeparator className="mx-0 my-0" />
+
+        <div className="p-1">
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={onSignOut}
+            className="gap-2 px-3 py-2"
+          >
+            <LogOut className="size-4" />
+            <Typography as="span" variant="body-base" weight="medium">
+              Logout
+            </Typography>
+          </DropdownMenuItem>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

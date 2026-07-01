@@ -8,12 +8,14 @@ import { toast } from "sonner"
 import { Button } from "@components/ui/button"
 import { Field } from "@components/ui/field"
 import { Input } from "@components/ui/input"
+import { getErrorMessage } from "@lib/get-error-message"
 import { useAuthStore } from "@shared/stores/auth.store"
 
+import { updateProfile } from "../api/settings.service"
 import { profileSchema, type ProfileValues } from "../schemas/settings.schema"
 import { SettingsCard } from "./SettingsCard"
 
-// No `name` field exists on the user yet — derive a sensible default from the email local-part.
+// Fall back to a name derived from the email local-part when the user has none set yet.
 function nameFromEmail(email?: string): string {
   if (!email) return ""
   const local = email.split("@")[0]
@@ -22,6 +24,7 @@ function nameFromEmail(email?: string): string {
 
 export function ProfileSection() {
   const user = useAuthStore((s) => s.user)
+  const setUser = useAuthStore((s) => s.setUser)
 
   const {
     register,
@@ -30,14 +33,18 @@ export function ProfileSection() {
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     // `values` keeps the form in sync once the user hydrates (direct visit / refresh).
-    values: { name: nameFromEmail(user?.email), email: user?.email ?? "" },
+    values: { name: user?.name ?? nameFromEmail(user?.email), email: user?.email ?? "" },
   })
 
-  const onSubmit = async (_values: ProfileValues) => {
+  const onSubmit = async (values: ProfileValues) => {
     const id = toast.loading("Saving profile...")
-    // Mock: the users/profile endpoint doesn't exist yet (Phase 3 backend).
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    toast.success("Profile saved", { id })
+    try {
+      const updated = await updateProfile({ name: values.name, email: values.email })
+      setUser(updated)
+      toast.success("Profile saved", { id })
+    } catch (error) {
+      toast.error(getErrorMessage(error), { id })
+    }
   }
 
   return (

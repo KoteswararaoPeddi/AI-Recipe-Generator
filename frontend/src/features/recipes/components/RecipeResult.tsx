@@ -44,9 +44,11 @@ type Props = {
   recipe: Recipe
   onSave?: () => void
   onNew?: () => void
+  saving?: boolean
+  saved?: boolean
 }
 
-export function RecipeResult({ recipe, onSave, onNew }: Props) {
+export function RecipeResult({ recipe, onSave, onNew, saving = false, saved = false }: Props) {
   return (
     <div className="space-y-5">
       <Typography variant="h2" weight="bold" className="text-foreground">
@@ -144,12 +146,12 @@ export function RecipeResult({ recipe, onSave, onNew }: Props) {
       {(onSave || onNew) && (
         <div className="flex gap-3 border-t border-border pt-4">
           {onSave && (
-            <Button className="flex-1" onClick={onSave}>
-              Save Recipe
+            <Button className="flex-1" onClick={onSave} disabled={saving || saved}>
+              {saved ? "Saved ✓" : saving ? "Saving..." : "Save Recipe"}
             </Button>
           )}
           {onNew && (
-            <Button variant="outline" onClick={onNew}>
+            <Button variant="outline" onClick={onNew} disabled={saving}>
               New Recipe
             </Button>
           )}

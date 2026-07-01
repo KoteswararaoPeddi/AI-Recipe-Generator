@@ -48,7 +48,7 @@ export class AuthService {
     }
     const tokens = await this.issueTokens(user.id, user.email);
     return {
-      user: { id: user.id, email: user.email, createdAt: user.createdAt },
+      user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt },
       tokens,
     };
   }
@@ -68,7 +68,7 @@ export class AuthService {
     }
     const tokens = await this.issueTokens(user.id, user.email);
     return {
-      user: { id: user.id, email: user.email, createdAt: user.createdAt },
+      user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt },
       tokens,
     };
   }

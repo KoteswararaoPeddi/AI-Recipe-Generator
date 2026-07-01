@@ -46,15 +46,19 @@ Token-styled shadcn/ui primitives currently vendored. Add more (`select`, `table
 | Badge | `ui/badge.tsx` | cva chip, `border-border`. Use for expiry/low-stock status, diet/cuisine/difficulty tags. Style status variants with `warning`/`danger`/`success` tokens. |
 | Separator | `ui/separator.tsx` | Token `bg-border` rule (`role="separator"`); `h-px w-full` / `w-px h-full`. |
 | Input | `ui/input.tsx` | Token-styled text input (`border-input`, ring on focus). RHF `register()` ref flows through via React 19 ref-as-prop. |
+| PasswordInput | `ui/password-input.tsx` | **Composite** (not shadcn): `Input` + eye/eye-off toggle button (`pr-10`, button absolute right) that flips `type` password↔text. Forwards all Input props incl. `register()`. Used by Login/Signup (and available for Settings). |
 | Textarea | `ui/textarea.tsx` | forwardRef `<textarea>`; mirrors `Input`, `min-h-24`, `aria-invalid:border-destructive`. |
 | Label | `ui/label.tsx` | `<label>`, `text-body-sm font-medium text-foreground select-none`. Used by `Field`. |
 | Field | `ui/field.tsx` | Wrapper: `Label` + control + `error` (`text-body-sm text-danger`); `flex flex-col gap-1.5`; optional muted `hint`. Use for every form field. |
 | Typography | `ui/typography/` | Polymorphic text component (`typography.tsx` + styles/types/constants). **Not shadcn** — custom. **All content text goes through it** (variant + weight props); colour/layout via `className`. |
-| Dialog | `ui/dialog.tsx` | **shadcn** (base-ui). `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogFooter`/`DialogClose`. Controlled via `open`/`onOpenChange`; `DialogContent` has a built-in close button. |
+| Dialog | `ui/dialog.tsx` | **shadcn** (base-ui). `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogFooter`/`DialogClose`. Controlled via `open`/`onOpenChange`. `DialogContent` has a built-in ✕ close button — pass **`showCloseButton={false}`** to hide it (the ConfirmDialog does this). |
 | Select | `ui/select.tsx` | **shadcn** (base-ui). `Select`/`SelectTrigger`/`SelectValue`/`SelectContent`/`SelectItem`. Controlled via `value`/`onValueChange`. With RHF use a `Controller`. |
 | Checkbox | `ui/checkbox.tsx` | **shadcn** (base-ui). `checked`/`onCheckedChange`. `data-checked:bg-primary`. With RHF use a `Controller`. |
 | Slider | `ui/slider.tsx` | **shadcn** (base-ui). Pass `value` as a **single-element array** for one thumb (`value={[n]}`, `onValueChange` returns an array). `min`/`max`/`step`. |
-| Toaster | `ui/sonner.tsx` | sonner `<Toaster>` wrapper, `theme="dark"` `position="top-center"` `richColors` `closeButton`. Mounted once in the root `layout.tsx`. Call `toast.loading/success/error` anywhere for async feedback. |
+| DropdownMenu | `ui/dropdown-menu.tsx` | **shadcn** (base-ui), CLI-installed. `DropdownMenu`/`DropdownMenuTrigger`/`DropdownMenuContent`/`DropdownMenuItem`/`DropdownMenuSeparator`/`DropdownMenuLabel`. Used by `UserMenu`. |
+| Avatar | `ui/avatar.tsx` | **shadcn** (base-ui), CLI-installed. `Avatar`/`AvatarImage`/`AvatarFallback`. Used for the user initial (`bg-primary text-primary-foreground`). |
+| Skeleton | `ui/skeleton.tsx` | **shadcn**, CLI-installed (`animate-pulse rounded-md bg-muted`). **Use this for all loading placeholders** — pass geometry via `className` (e.g. `h-32 rounded-xl border border-border`). Used in every list/detail view's loading state. Do **not** hand-roll `animate-pulse bg-muted` divs. |
+| Toaster | sonner (mounted in `GlobalHosts`) | The sonner `<Toaster>` is imported directly from `sonner` and rendered in `shared/components/GlobalHosts.tsx` (`position="top-right" richColors`), mounted once in the root `layout.tsx`. There is **no `ui/sonner.tsx`**. Call `toast.loading/success/error` anywhere. |
 
 ### Shared composites (`src/shared/components`)
 
@@ -156,8 +160,9 @@ Last updated: 2026-06-28
 | Property | Class |
 | -------- | ----- |
 | Shell root | `min-h-screen bg-background` |
-| Header bar | `sticky top-0 z-30 border-b border-border bg-surface`; inner `mx-auto flex h-16 max-w-7xl items-center gap-6 px-6` |
+| Header bar | `sticky top-0 z-30 border-b border-border bg-surface`; inner `relative mx-auto flex h-16 max-w-7xl items-center px-6` (brand left, nav absolutely centered, actions `ml-auto` right) |
 | Brand | logo well `flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary` + `text-h6 font-bold text-foreground` |
+| Nav (centered) | `absolute left-1/2 hidden w-max -translate-x-1/2 items-center gap-1 lg:flex` — **`w-max`** is required so the absolute nav doesn't shrink-to-half-width and wrap labels |
 | Nav link | `flex items-center gap-2 rounded-lg px-3 py-2 text-body-base font-medium` |
 | Nav link (active) | `bg-primary/10 text-primary` |
 | Nav link (idle) | `text-muted-foreground hover:bg-muted hover:text-foreground` |
@@ -167,9 +172,11 @@ Last updated: 2026-06-28
 
 **Pattern notes:** the `(app)` **layout (Server) wraps the client `AppShell`**, passing `{children}`
 through so pages **stay Server Components** (children-slot). Active nav state from `usePathname`.
-Nav items in `shared/config/app-nav.ts` (`{label, href, icon}`). `UserMenu` is a lightweight
-`useState` dropdown (no shadcn dropdown dep). Auth via `useAuthStore`; hydration two paths
-(login/signup seed `setUser`; `AppShell` `getMe` only when `status === "loading"`).
+Nav items in `shared/config/app-nav.ts` (`{label, href, icon}`); nav is **centered** in the header.
+`UserMenu` is now built on the **shadcn `DropdownMenu` + `Avatar`** (CLI-installed) — trigger is the
+**avatar only** (no name, no chevron, no hover bg); the panel shows avatar + name + email, a separator,
+and a red `Logout`. Auth via `useAuthStore`; hydration two paths (login/signup seed `setUser`;
+`AppShell` `getMe` only when `status === "loading"`).
 
 ### Dashboard cards (`features/dashboard`)
 
@@ -186,10 +193,13 @@ Last updated: 2026-06-28
 | List row | `flex items-center gap-3 rounded-lg p-2 hover:bg-muted`; row icon well `size-10 rounded-lg` |
 | Stat/section grids | stats `grid gap-6 sm:grid-cols-2 lg:grid-cols-3`; actions/lists `md:grid-cols-2` / `lg:grid-cols-2` |
 
-**Pattern notes:** multi-color icon wells (green/blue/purple) are the dashboard accent — green =
-`primary`, blue = `info`, purple = the `purple-500` foundation scale (sanctioned decorative
-one-off). Cards are presentational **Server Components**; content is **mock data** in
-`features/dashboard/data/` until the real APIs land. `ComingSoon` is the stub for unbuilt nav routes.
+**Pattern notes:** multi-color icon wells (primary/blue/purple) are the dashboard accent. The
+presentational cards (`StatCard`/`ActionCard`/`RecentRecipes`/`UpcomingMeals`) are unchanged, but the
+page now renders a **client `DashboardView`** that fetches **real data** in one `Promise.all`
+(`listRecipes` + `listPantry` + `listMealPlan` for the current week) → stats (counts), Recent Recipes
+(latest 3, link to detail), Upcoming Meals (this week's first 3). Loading skeletons + empty states;
+**all mock `data/*.data.ts` removed** (dashboard view types live in `features/dashboard/types/`).
+`ComingSoon` is the stub for unbuilt nav routes.
 
 ### Pantry (`features/pantry`)
 
@@ -281,6 +291,69 @@ Last updated: 2026-06-28
 **Pattern notes:** thin Server page (`max-w-3xl`) stacks three **independent client sections**, each with its own Save button + toast (no parent orchestrator — sections are self-contained). Profile/Password reuse the **auth form pattern** (RHF + Zod + `Field` + `toast.loading`→success). Preferences reuses **`DIETS`/`CUISINES` from `@features/generator/constants`** and the generator's pill + `Slider` patterns (no duplication). All saves are **mock** (toast only) until the Phase 3 users/preferences endpoints exist. Restrictions are multi-select (mirrors the generator's dietary pills); cuisine is single-select (mirrors the generator's single cuisine).
 
 ---
+
+## Global hosts + confirm-before-delete
+
+Files: `shared/components/GlobalHosts.tsx` · `shared/components/ConfirmDialog.tsx` · `shared/stores/confirm.store.ts`
+Last updated: 2026-06-28
+
+- **`GlobalHosts`** (client) is mounted **once** in the root `app/layout.tsx` and renders the sonner
+  **`<Toaster position="top-right" richColors />`** (it was previously never mounted —
+  toasts didn't show) plus the **`<ConfirmDialogHost />`**.
+- **Confirm dialog** is imperative: `confirm.store.ts` (zustand) exposes `confirm(options) → Promise<boolean>`
+  and a single `ConfirmDialogHost` (built on the **`Dialog`** primitive, `sm:max-w-sm`) reads the store.
+  Options: `{ title, description?, confirmLabel?, cancelLabel?, destructive? }` (`destructive` defaults
+  **true** → red `Button variant="destructive"`; cancel is `outline`).
+- **Every delete confirms** before acting — call site pattern:
+  `const ok = await confirm({ title, description, confirmLabel: "Delete" }); if (!ok) return` then the
+  optimistic mutation. Wired in: Pantry item, Recipe card (list), Recipe detail, Meal-plan slot remove,
+  Shopping "Clear Checked". (Shopping "Add to Pantry" is a move, not a delete — no confirm.)
+
+## Loading skeletons (content-shaped)
+
+Last updated: 2026-06-28
+
+Use the shadcn **`Skeleton`** (`ui/skeleton.tsx`, CLI-installed — `animate-pulse rounded-md bg-muted`)
+for **every** loading placeholder. **Never** hand-roll `animate-pulse bg-muted` divs.
+
+**Rule: skeletons mirror the real content's shape, not plain blocks.** Rebuild the actual layout
+(same `Card`, grid, spacing) and swap each text/media element for a `<Skeleton>` sized to it. Pass
+geometry via `className`; the pulse/colour come from the component.
+
+| View | Skeleton shape (matches the real layout) |
+| ---- | ---------------------------------------- |
+| Shopping (`ShoppingView`) | **1** category `Card` → header bar + 4 rows of `size-5` checkbox + name (`h-4`) / qty (`h-3`) |
+| Pantry (`PantryView`) | **6** `Card p-5` in the 3-col grid → title/category lines + `size-4` ✕ + quantity row + expiry line |
+| Recipes (`RecipesView`) | **6** `Card` in the 3-col grid → `h-44` media well + title + 2 desc lines + tag pills + meta row + `h-px` separator + button row (`flex-1` + `size-8`) |
+| Recipe detail (`RecipeDetail`) | back-link + header `Card p-8` (title/desc/tags/time) + `lg:grid-cols-3`: ingredients `Card` (6 lines) + instructions `Card` (5 × `size-7` numbered step + 2 lines) |
+| Dashboard (`DashboardView`) | **3** stat `Card`s (`size-12` icon well + label/value) + **2** list `Card`s (header + 3 × `size-10` row) |
+| Settings prefs (`PreferencesSection`) | label + 6 pill skeletons, label + input, label + 8 pills, 2-up `h-12` toggle, `h-9 w-40` save button |
+
+**Pattern notes:** skeletons live inline in each view's `loading` branch (no separate skeleton
+files), reusing the real component's container classes (`Card p-5`, the grid, `divide-y`, etc.).
+Counts are fixed placeholders (e.g. 6 cards) — they don't reflect real data. The **only** retained
+raw `animate-pulse` is the Generate page's loading **chef-hat icon** (an animated icon, not a skeleton).
+
+## API integration pattern (all feature pages)
+
+Every feature page is now wired to the NestJS API (mock `data/*.data.ts` layers removed).
+The consistent shape — match it for any new data-backed view:
+
+- **Service** in `features/<f>/api/<f>.service.ts`: thin typed functions over the shared
+  `@lib/axios.config` instance (`withCredentials` → httpOnly cookies). Each returns unwrapped,
+  typed domain data (`res.data.data`). Create payloads are `Omit<T, "id" | …server-set>`.
+- **Fetch**: client view loads in a `useEffect` with an `active` cleanup flag; `loading` state
+  drives a **content-shaped `Skeleton`** (see the "Loading skeletons" section above).
+- **Empty vs. loading vs. error** are distinct: skeleton while loading; dashed-border empty panel
+  when the list is genuinely empty; **error toast** via `getErrorMessage(error)` (never a silent
+  fail). Detail pages also distinguish **404** (axios `response.status === 404`) from other errors.
+- **Mutations**: create awaits the server row then prepends it; **delete/toggle are optimistic**
+  (update state immediately, revert + toast on failure). Dialogs `await onAdd(...)` and only
+  `reset()` + close on success, surfacing errors inline (RHF `isSubmitting` disables the submit).
+- **Forms**: submit via `toast.loading(...)` → `toast.success/error(..., { id })` (auth pattern).
+
+This keeps every page's states consistent and the backend the single source of truth. The
+`AuthUser` type now includes `name`; the auth store seeds it from login/register/`getMe`.
 
 ## Baseline — light theme
 

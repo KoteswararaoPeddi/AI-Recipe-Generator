@@ -32,7 +32,7 @@ export function ShoppingItemRow({ item, onToggle }: Props) {
           {item.name}
         </Typography>
         <Typography variant="body-sm" className="text-muted-foreground">
-          {item.quantity}
+          {item.quantity} {item.unit}
         </Typography>
       </div>
     </label>

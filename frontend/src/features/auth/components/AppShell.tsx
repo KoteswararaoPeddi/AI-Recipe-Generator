@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center px-6">
           <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <ChefHat className="size-5" />
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="text-h6 font-bold text-foreground">AI Recipe Generator</span>
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="absolute left-1/2 hidden w-max -translate-x-1/2 items-center gap-1 lg:flex">
             {APP_NAV.map((item) => {
               const active = pathname === item.href
               return (
@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-body-base font-medium transition-colors",
+                    "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-body-base font-medium transition-colors",
                     active
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
