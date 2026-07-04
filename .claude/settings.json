@@ -30,6 +30,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking engineering decision log",
+            "command": "grep -qE '\"stop_hook_active\":[[:space:]]*true' && exit 0; printf '%s' '{\"decision\":\"block\",\"reason\":\"REMINDER: if this turn changed code, append an entry to the matching file in frontend/context/engineering/ (frontend/backend/database/auth-security/ai/ai-agents/mcp .md). Follow the SAME format as existing entries: What/Where/Why PLUS a Learn block (vocabulary if needed -> naive-vs-good code -> plain-english why -> where-else-you-would-use-it -> rule of thumb), per context/engineering/README.md. Pure facts stay terse with a (no lesson) note. Perf items only after approval. If it was pure discussion with no code change, nothing to log - just stop.\"}'"
+          }
+        ]
+      }
     ]
   }
 }

@@ -23,7 +23,13 @@ Read in this exact order before any implementation:
 ## Rules That Never Change
 
 - Never use hardcoded hex values or raw Tailwind color classes
-- Update `progress-tracker.md` and `ui-registry.md` after every feature
+- Update `progress-tracker.md`, `build-plan.md`, and `ui-registry.md` after every feature **or
+  change** — proactively, not only when asked. In `build-plan.md`, tick the specific per-phase
+  checkboxes (not just the summary table) and leave genuine gaps unchecked / `[~]`.
+- After every task that changes code, append an entry to the matching file under
+  `context/engineering/` (frontend / backend / database / auth-security / ai / ai-agents / mcp)
+  using the What/Where/Why template. This folder is a **reader-facing decision log**, not part of
+  the pre-read pipeline. Performance optimizations are logged only **after** they're approved.
 - Before any third party library — load its installed skill first,
   then read `context/library-docs.md` for project-specific rules
 - If the same problem persists after one corrective prompt —
