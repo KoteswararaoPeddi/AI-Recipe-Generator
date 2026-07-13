@@ -25,6 +25,9 @@ async function bootstrap(): Promise<void> {
   });
   app.setGlobalPrefix("api");
 
+    // Redirect root to Swagger docs for convenience.
+    app.getHttpAdapter().get("/", (_req, res) => res.redirect("/docs"));
+
   // Swagger / OpenAPI — UI at /docs, JSON at /docs-json.
   const swaggerConfig = new DocumentBuilder()
     .setTitle("PantryChef API")
