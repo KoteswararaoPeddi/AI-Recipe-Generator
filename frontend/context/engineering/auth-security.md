@@ -72,6 +72,40 @@
   **Rule of thumb:** in the browser, store session tokens in `httpOnly` + `sameSite` + `secure` cookies,
   never `localStorage`. If JavaScript can read your token, so can an attacker's.
 
+### `SameSite` is environment-driven: `None` cross-site in prod, `Lax` locally
+- **What:** Cookie `sameSite` is computed, not fixed: `secure ? "none" : "lax"`. In production (HTTPS, `secure=true`) cookies are `SameSite=None; Secure` so they survive the frontend (Vercel) and API (Render) being on **different domains**; locally (`http`, `secure=false`) they stay `Lax`. `clearCookie` sends the same attributes so logout actually removes them.
+- **Where:** `backend/src/modules/auth/auth.cookies.ts` (`baseOptions`, `clearAuthCookies`), `auth.controller.ts` (passes `this.secure`).
+- **Why:** With a split deploy the browser treats every API call as cross-site; a `Lax` cookie is **not sent** cross-site, so login would succeed then every following request 401s. `None` (which the browser only accepts *with* `Secure`) is required. Kept `Lax` locally because localhost is same-site and often plain HTTP (where `None` would be rejected).
+- **Learn**
+
+  **Vocabulary:** *same-site* = same registrable domain. *`SameSite=Lax`* = cookie sent on top-level navigations but **not** on cross-site sub-requests (fetch/XHR to another domain). *`SameSite=None`* = sent on all cross-site requests, but the browser **requires `Secure`** (HTTPS) with it.
+
+  ````ts
+  // ❌ hard-coded Lax — works locally, silently breaks a split deploy:
+  //    api.onrender.com is cross-site to app.vercel.app, so the browser never sends this cookie →
+  //    login sets it, the very next axios call has no cookie → 401 everywhere.
+  sameSite: "lax"
+
+  // ✅ environment-driven: cross-site None+Secure in prod, Lax on localhost
+  function baseOptions(secure: boolean) {
+    return { httpOnly: true, secure, sameSite: (secure ? "none" : "lax") as "none" | "lax", path: "/" }
+  }
+  // clearCookie must send the SAME secure/sameSite or the browser won't match & delete the cookie.
+  ````
+
+  Cookie delivery depends on the relationship between the site setting the cookie and the site the
+  request goes to. A frontend and API on **different domains** = cross-site, so only `SameSite=None`
+  cookies ride along — and browsers accept `None` **only** over HTTPS (`Secure`). Tying `sameSite` to the
+  same `secure` flag that's already `true` only in production gives the right value in each environment
+  without a separate config knob.
+
+  **Where else you'd use it:** any split-origin browser auth — SPA on a CDN + API on another host, a
+  widget embedded on third-party sites, subdomains that aren't the same registrable domain. Keep `Lax`
+  (the safer CSRF default) whenever the frontend and API **are** same-site.
+
+  **Rule of thumb:** cookie auth across different domains needs `SameSite=None; Secure`; same-site can
+  stay `Lax`. Drive it off your `secure`/prod flag, and clear cookies with the same attributes you set.
+
 ### Refresh = full rotation; logout invalidates; SHA-256-before-bcrypt
 - **What:** Every refresh compares the presented token against the stored `bcrypt(sha256(token))` hash and issues/persists a brand-new pair; logout nulls `hashedRefreshToken`. Passwords: bcryptjs 12 rounds, capped `@MaxLength(72)`. Failures return generic `ForbiddenException`/`UnauthorizedException`.
 - **Where:** `auth.service.ts:18,56-78,109-111`, `users.service.ts:11`, `register.dto.ts:9-13`.

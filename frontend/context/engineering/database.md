@@ -379,3 +379,38 @@
 - **Where:** `backend/prisma/migrations/`.
 - **Learned / Gotcha:** `migrate dev` flags destructive column drops/renames with data-loss warnings in the migration header — migration 3 carries them. *(Otherwise a plain history record — no deeper lesson.)*
 - **No seed script** — no `prisma/seed.ts`, no `prisma.seed` key (`backend/package.json:13-18`). A genuine gap, logged as such.
+
+## Connections & Deployment
+
+### Pooled `url` + unpooled `directUrl` for serverless Postgres (Neon)
+- **What:** The datasource declares two connections: `url = env("DATABASE_URL")` (the **pooled**, PgBouncer endpoint — used by the running app) and `directUrl = env("DIRECT_URL")` (the **unpooled** endpoint — used by `prisma migrate`/DDL). Locally both point at the same local Postgres; in prod they're Neon's pooled (`-pooler`) and direct hosts.
+- **Where:** `backend/prisma/schema.prisma` (datasource `db`); `DIRECT_URL` added to `env.validation.ts` (optional) + `.env.example`. Deploy runbook: `DEPLOYMENT.md`.
+- **Why:** Zero-downtime deploys run old+new instances at once (2× connections), and serverless Postgres has a low connection ceiling — the pooler absorbs that so the app never exhausts it. But Prisma's migration engine can't run through transaction-mode pooling, so migrations need the direct connection. `directUrl` gives each the connection it needs.
+- **Learn**
+
+  **Vocabulary:** a *connection pooler* (PgBouncer) is a middleman that multiplexes many client connections onto a few real Postgres connections. *Transaction-mode pooling* hands a real connection back after each transaction — great for throughput, but it breaks features that span statements (prepared statements, session state, some DDL). *DDL* = schema-changing SQL (`CREATE TABLE`, `ALTER`…).
+
+  ````prisma
+  // ❌ one direct URL for everything — fine until a deploy overlaps or you add an instance,
+  //    then N connections blow past the DB's limit and requests start failing with "too many connections"
+  datasource db { provider = "postgresql", url = env("DATABASE_URL") }
+
+  // ✅ pooled for the app, direct for migrations
+  datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")   // pooled (PgBouncer) — app runtime, absorbs connection spikes
+    directUrl = env("DIRECT_URL")     // unpooled — `prisma migrate deploy` / DDL (can't go through the pooler)
+  }
+  ````
+
+  Runtime traffic wants **many cheap, transient** connections → route it through the pooler so the DB sees
+  a stable few. Migrations want a **single, stateful** connection that can run DDL and Prisma's advisory
+  locks → they need the direct endpoint. One datasource, two endpoints, each matched to its workload.
+
+  **Where else you'd use it:** any serverless/edge Postgres (Neon, Supabase, RDS Proxy) with Prisma or
+  Drizzle; Lambda/Vercel functions that would otherwise open a connection per invocation; any app doing
+  rolling/zero-downtime deploys against a connection-limited DB.
+
+  **Rule of thumb:** serverless or connection-limited Postgres → app goes through the **pooler**,
+  migrations go through the **direct** URL. A single always-on box at tiny scale can skip it, but the
+  pooled+`directUrl` split is the safe default the moment deploys overlap or instances multiply.

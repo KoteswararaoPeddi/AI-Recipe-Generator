@@ -270,6 +270,16 @@ See build-plan.md for the full per-phase breakdown.
 _Add notes here as the build progresses — workarounds, patterns, anything that differs from
 the context files._
 
+> **Deployment prep (Neon + Render + Vercel) — code ready, NOT yet deployed.** Split deploy:
+> Postgres on **Neon**, NestJS backend on **Render** (Vercel can't run a long-lived Nest server),
+> Next.js frontend on **Vercel**. Code changes made: Prisma datasource now has pooled `url` +
+> `directUrl` (`DIRECT_URL` env, optional in `env.validation`; local = same as `DATABASE_URL`);
+> auth cookies are **`SameSite=None; Secure` in prod** / `Lax` locally (env-driven off `secure`), and
+> `clearAuthCookies` sends matching attributes. Runbook in repo-root `DEPLOYMENT.md`; decisions logged
+> in `engineering/database.md` (pooled+directUrl) and `auth-security.md` (cross-site cookies).
+> **Pending:** create Neon DB, deploy backend (build runs `prisma migrate deploy`), deploy frontend,
+> then set `CORS_ORIGIN` to the Vercel URL + redeploy. Rotate the Neon password that was pasted in chat.
+
 > **Recipe generation avoids duplicates (generation-aware).** `RecipesService.generate()` now
 > fetches the user's saved recipe **titles** (in parallel with the pantry lookup) and passes them to
 > `buildRecipePrompt(dto, pantryNames, savedTitles)`, which injects a "you already have these — make

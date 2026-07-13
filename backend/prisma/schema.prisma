@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (PgBouncer) in prod — app runtime
+  directUrl = env("DIRECT_URL") // unpooled — migrations/DDL (locally: same as DATABASE_URL)
 }
 
 // ---------------------------------------------------------------------------

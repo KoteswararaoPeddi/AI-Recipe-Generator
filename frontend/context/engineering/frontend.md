@@ -617,3 +617,46 @@
 
   **Rule of thumb:** validate cheaply and locally before doing expensive work. The best failed API call
   is the one you never made.
+
+---
+
+## Tooling & Dev Workflow
+
+### Never run `next build` while `next dev` is live (`.next` cache corruption)
+
+- **What:** A "login page is 404" report traced to a corrupted Turbopack `.next` cache — the give-away
+  was a typecheck error `Expression expected` in `.next/dev/types/routes.d.ts`, a **generated** file
+  nobody wrote. Recovered with: stop all dev servers → `rm -rf .next` → start **one** fresh `npm run dev`.
+- **Where:** build/dev workflow (no source change); symptom surfaced in generated `.next/dev/types/`.
+- **Why:** it was caused by running `npm run build` while `npm run dev` was still running. Both commands
+  write the same `.next` directory; run concurrently they interleave writes and leave the generated route
+  types half-written → routes 404 and typecheck fails on a file you can't fix by editing code.
+- **Learn**
+
+  **Vocabulary:** `.next` is Next's build-output/cache dir — compiled routes, **generated** types
+  (`routes.d.ts`), and the Turbopack cache. It's *derived state*: never edited by hand, always safe to
+  delete and regenerate.
+
+  ```text
+  # ❌ "let me just build to check" while the dev server is up
+  # (next dev already running)
+  npm run build      # two processes writing .next → corrupt generated types → 404s
+
+  # ✅ pick ONE. To check types without disturbing the running dev cache:
+  npx tsc --noEmit
+
+  # ✅ recover a corrupted cache:
+  #   stop all dev servers  →  rm -rf .next  →  start ONE `npm run dev`
+  ```
+
+  Plain-english **why:** the two commands share one mutable output dir with no locking, so concurrent
+  writers can leave it half-written. Deleting `.next` throws away the corrupted derived state; it
+  regenerates cleanly on the next run — so there's nothing to "fix" in the source.
+
+  **Where else you'd use this:** any shared build cache written by two processes at once (Vite
+  `dist`/`.vite`, webpack cache, `tsc --build` `.tsbuildinfo`, a Turborepo/Nx cache); "impossible" errors
+  pointing at a **generated/vendored** file (delete + regenerate *before* debugging code); flaky CI from a
+  stale build dir (clean before build).
+
+  **Rule of thumb:** don't point two build/dev processes at one output dir. When an error blames a file
+  you never wrote, suspect a stale cache — delete it and regenerate before touching source.
