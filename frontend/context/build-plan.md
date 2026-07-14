@@ -70,8 +70,10 @@ interface and replace it the moment the endpoint lands.
       `dietaryRestrictions[]`, `allergies`, `preferredCuisine`, `defaultServings`,
       `measurementUnit`). Also **`users` profile/password** (`PATCH /users/me`, `POST /users/me/password`).
 - [x] Frontend Settings page: Profile + Change Password + Dietary Preferences (RHF + Zod / pills / slider)
-- [ ] **Preferences pre-fill the generator's filters** — NOT wired (generator uses its own defaults)
-- [ ] Verified: change preferences → generator opens pre-filled — pending the item above
+- [x] **Preferences pre-fill the generator's filters** — `GeneratorForm` loads `getPreferences()` on
+      mount and seeds cuisine / dietary restrictions / servings from the saved Settings values
+- [~] Verified: change preferences → generator opens pre-filled — implemented + typechecks; manual
+      click-through in the running app still to be done
 
 ---
 
@@ -84,7 +86,7 @@ interface and replace it the moment the endpoint lands.
       transient 503, returns "daily limit reached" on quota `429`
 - [x] Frontend generator page: ingredient chips, use-pantry (default on), cuisine/diet/servings/time
       controls, "Generate", result view; "New Recipe" regenerates; empty-pantry message in panel.
-      _Controls do **not** default from saved preferences yet (see Phase 3)._
+      _Filter controls now default from saved preferences (see Phase 3)._
 - [x] Verified: live Gemini returns a coherent, filter-respecting recipe
 
 ---
@@ -148,7 +150,7 @@ interface and replace it the moment the endpoint lands.
 | 0 — Foundation              | Done        |
 | 1 — Authentication          | Done        |
 | 2 — Pantry Management       | Done        |
-| 3 — User Preferences        | Mostly (prefs save/load done; generator pre-fill from prefs pending) |
+| 3 — User Preferences        | Done (prefs save/load + generator pre-fill; manual click-through pending) |
 | 4 — AI Recipe Generation    | Done (live Gemini, verified) |
 | 5 — Recipe View             | Done        |
 | 6 — Recipe Collection       | Done        |

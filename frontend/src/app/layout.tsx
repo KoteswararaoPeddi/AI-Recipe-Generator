@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {  Poppins } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 import { GlobalHosts } from "@shared/components/GlobalHosts";
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className="min-h-full">
         {children}
         <GlobalHosts />
+        <Analytics />
       </body>
     </html>
   );

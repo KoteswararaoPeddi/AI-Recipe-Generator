@@ -42,9 +42,16 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
     const status = error.response?.status
 
-    const isAuthEndpoint = originalRequest?.url?.includes("/auth/refresh")
+    // Endpoints where a 401 is a *terminal* answer ("bad/absent credentials"), NOT an
+    // expired access token to silently refresh. Login/register 401s mean the credentials
+    // were wrong; /auth/refresh 401 means the refresh token itself is gone. Running the
+    // refresh-retry on these would loop and, on failure, hard-redirect to /login — a full
+    // page reload that wipes the form's own error toast.
+    const skipRefreshRetry = ["/auth/login", "/auth/register", "/auth/refresh"].some(
+      (path) => originalRequest?.url?.includes(path),
+    )
 
-    if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+    if (status === 401 && !originalRequest._retry && !skipRefreshRetry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })

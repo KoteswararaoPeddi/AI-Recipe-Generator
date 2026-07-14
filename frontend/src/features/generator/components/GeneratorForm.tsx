@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Plus, Sparkles, X } from "lucide-react"
 
 import { cn } from "@lib/utils"
@@ -15,8 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/ui/select"
+import { Skeleton } from "@components/ui/skeleton"
 import { Slider } from "@components/ui/slider"
 import { Typography } from "@components/ui/typography"
+
+import { getPreferences } from "@features/settings/api/settings.service"
 
 import { COOKING_TIMES, CUISINES, DIETS } from "../constants"
 
@@ -50,6 +53,30 @@ export function GeneratorForm({ onGenerate, loading }: Props) {
   const [diets, setDiets] = useState<string[]>(["Vegetarian"])
   const [servings, setServings] = useState(4)
   const [cookingTime, setCookingTime] = useState("medium")
+  const [prefsLoading, setPrefsLoading] = useState(true)
+
+  // Pre-fill the filters from the user's saved preferences (Settings page). The hardcoded values
+  // above are the fallback used only if the fetch fails; while it's in flight we render skeletons
+  // (see prefsLoading) instead of flashing those defaults and then swapping them for real values.
+  useEffect(() => {
+    let active = true
+    getPreferences()
+      .then((prefs) => {
+        if (!active) return
+        setCuisine(prefs.preferredCuisine || "Any")
+        setDiets(prefs.dietaryRestrictions)
+        setServings(Math.min(12, Math.max(1, prefs.defaultServings || 4)))
+      })
+      .catch(() => {
+        // Keep the defaults if preferences can't be loaded.
+      })
+      .finally(() => {
+        if (active) setPrefsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const addIngredient = () => {
     const value = input.trim()
@@ -117,57 +144,75 @@ export function GeneratorForm({ onGenerate, loading }: Props) {
           <Typography as="div" variant="label-lg" weight="medium" className="mb-1.5 text-foreground">
             Cuisine Type
           </Typography>
-          <Select value={cuisine} onValueChange={(v) => v && setCuisine(v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CUISINES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {prefsLoading ? (
+            <Skeleton className="h-9 w-full" />
+          ) : (
+            <Select value={cuisine} onValueChange={(v) => v && setCuisine(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CUISINES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div>
           <Typography as="div" variant="label-lg" weight="medium" className="mb-2 text-foreground">
             Dietary Restrictions
           </Typography>
-          <div className="flex flex-wrap gap-2">
-            {DIETS.map((diet) => (
-              <button
-                key={diet}
-                type="button"
-                onClick={() => toggleDiet(diet)}
-                className={pill(diets.includes(diet))}
-              >
-                {diet}
-              </button>
-            ))}
-          </div>
+          {prefsLoading ? (
+            <div className="flex flex-wrap gap-2">
+              {DIETS.map((diet) => (
+                <Skeleton key={diet} className="h-8 w-20 rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {DIETS.map((diet) => (
+                <button
+                  key={diet}
+                  type="button"
+                  onClick={() => toggleDiet(diet)}
+                  className={pill(diets.includes(diet))}
+                >
+                  {diet}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
           <Typography as="div" variant="label-lg" weight="medium" className="mb-3 text-foreground">
-            Servings: {servings}
+            Servings: {prefsLoading ? "" : servings}
           </Typography>
-          <Slider
-            value={[servings]}
-            min={1}
-            max={12}
-            step={1}
-            onValueChange={(v) => setServings((Array.isArray(v) ? v[0] : v) as number)}
-          />
-          <div className="mt-1 flex justify-between">
-            <Typography as="span" variant="body-sm" className="text-muted-foreground">
-              1
-            </Typography>
-            <Typography as="span" variant="body-sm" className="text-muted-foreground">
-              12
-            </Typography>
-          </div>
+          {prefsLoading ? (
+            <Skeleton className="h-5 w-full" />
+          ) : (
+            <>
+              <Slider
+                value={[servings]}
+                min={1}
+                max={12}
+                step={1}
+                onValueChange={(v) => setServings((Array.isArray(v) ? v[0] : v) as number)}
+              />
+              <div className="mt-1 flex justify-between">
+                <Typography as="span" variant="body-sm" className="text-muted-foreground">
+                  1
+                </Typography>
+                <Typography as="span" variant="body-sm" className="text-muted-foreground">
+                  12
+                </Typography>
+              </div>
+            </>
+          )}
         </div>
 
         <div>

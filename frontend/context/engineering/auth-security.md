@@ -280,3 +280,42 @@
 
 > **Noted exposure:** Swagger `/docs` is served without auth gating (`main.ts:29-41`). Fine for dev;
 > revisit before a public deploy.
+
+### Refresh-retry interceptor must exempt the credential endpoints (401 ≠ always "expired session")
+- **What:** The axios 401 auto-refresh interceptor now skips its refresh-and-retry logic for `/auth/login`, `/auth/register`, and `/auth/refresh` — not just `/auth/refresh`. On those endpoints a 401 is a *terminal* answer ("wrong credentials"), so the interceptor rejects it straight through to the caller instead of trying to refresh.
+- **Where:** `frontend/src/shared/lib/axios.config.ts:45-56` (`skipRefreshRetry` list), replacing the old single `isAuthEndpoint = url.includes("/auth/refresh")` check.
+- **Why:** Previously a failed login (401) was mistaken for an expired access token: the interceptor called `/auth/refresh` (which also 401'd), fell into the `catch`, and ran `window.location.href = "/login"` — a **full page reload** that wiped the form's own error toast before `LoginForm` could show "Invalid email or password." Users saw a raw "Unauthorized" flash + a page refresh instead of a clean inline error.
+
+- **Learn**
+
+  **First, the vocabulary:**
+  - **Response interceptor** — a function axios runs on *every* response before your `await` sees it. The error branch is a single choke point for cross-cutting logic like "on 401, refresh the token and retry."
+  - **Silent token refresh** — when a short-lived access token expires, the client transparently calls a refresh endpoint to get a new one and replays the original request, so the user never notices. Valid *only* for requests that failed **because the session expired**.
+  - **401's two meanings** — `401 Unauthorized` covers both "you *were* logged in but your token expired" (refreshable) **and** "the credentials you just submitted are wrong" (terminal). Same status code, opposite correct responses.
+
+  ````ts
+  // ❌ naive: treat every 401 (except the refresh call) as an expired session
+  const isAuthEndpoint = url?.includes("/auth/refresh")
+  if (status === 401 && !isAuthEndpoint) {
+    await refreshAccessToken()          // login 401 → pointless refresh → also 401 →
+    // ...catch → window.location.href = "/login"   →  full page reload, toast lost
+  }
+
+  // ✅ our code: the credential endpoints are exempt — their 401 is the final answer
+  const skipRefreshRetry = ["/auth/login", "/auth/register", "/auth/refresh"]
+    .some((path) => url?.includes(path))
+  if (status === 401 && !originalRequest._retry && !skipRefreshRetry) {
+    /* refresh + retry only for genuinely-authenticated endpoints */
+  }
+  // login 401 now rejects straight through → LoginForm's catch shows the real message
+  ````
+
+  **Plain-english why:** silent refresh only makes sense when the 401 means "my previously-valid session lapsed." On the login/register endpoints there *is no session yet* — a 401 means the input was wrong, and that answer must reach the form untouched. Letting the interceptor "helpfully" refresh + redirect on those turns a normal validation error into a jarring reload and hides the real message. The exemption list encodes *which 401s are terminal*.
+
+  **Where else you'd use this:**
+  - Any global 401→refresh interceptor (React Query/axios/fetch wrapper) — always exempt login, register, password-reset, and the refresh call itself.
+  - OAuth/token-exchange endpoints where a 4xx is the actual result, not a session problem.
+  - Webhook/verification handlers where an auth failure is the business answer, not something to retry.
+  - Rate-limit (429) or MFA-challenge flows — same shape: some statuses are terminal for specific endpoints and must bypass generic retry logic.
+
+  **Rule of thumb:** a global "on 401, refresh & retry" interceptor must **allow-list the endpoints it applies to (or deny-list the credential ones)** — the endpoints that *establish* a session (login/register/refresh) must always be exempt, or a normal auth failure becomes an infinite-ish retry and a page reload.

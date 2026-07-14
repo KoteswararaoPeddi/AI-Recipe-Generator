@@ -328,6 +328,7 @@ geometry via `className`; the pulse/colour come from the component.
 | Recipe detail (`RecipeDetail`) | back-link + header `Card p-8` (title/desc/tags/time) + `lg:grid-cols-3`: ingredients `Card` (6 lines) + instructions `Card` (5 × `size-7` numbered step + 2 lines) |
 | Dashboard (`DashboardView`) | **3** stat `Card`s (`size-12` icon well + label/value) + **2** list `Card`s (header + 3 × `size-10` row) |
 | Settings prefs (`PreferencesSection`) | label + 6 pill skeletons, label + input, label + 8 pills, 2-up `h-12` toggle, `h-9 w-40` save button |
+| Generator prefs (`GeneratorForm`, `prefsLoading`) | **only the 3 preference controls** gate on the `getPreferences()` fetch: Cuisine → `h-9 w-full`, Dietary Restrictions → `DIETS`-many `h-8 w-20 rounded-lg` pills, Servings → `h-5 w-full` (label shows no number while loading). Ingredients card is not pref-driven → never skeletoned. |
 
 **Pattern notes:** skeletons live inline in each view's `loading` branch (no separate skeleton
 files), reusing the real component's container classes (`Card p-5`, the grid, `divide-y`, etc.).

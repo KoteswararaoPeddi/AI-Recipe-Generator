@@ -202,6 +202,53 @@
 - **Where:** `frontend/src/app/page.tsx:5`.
 - **Why:** App is auth-gated; no marketing landing surface. *(Pure fact — no lesson.)*
 
+### Seeding a form's state from a fetch (generator pre-filled from saved preferences)
+- **What:** `GeneratorForm` initializes cuisine/diets/servings to hardcoded values, then a mount `useEffect` calls `getPreferences()` and overwrites them with the user's saved Settings values. While the fetch is in flight, a `prefsLoading` flag renders **skeletons** in place of the three preference controls; the hardcoded values become the fallback shown **only if the fetch fails**.
+- **Where:** `features/generator/components/GeneratorForm.tsx`; reuses `features/settings/api/settings.service.getPreferences`.
+- **Why:** `useState` can't `await`, so the form can't be *born* with fetched values — it renders first, then reconciles once the data arrives. Seeding with opinionated defaults (`"Mexican"`, `["Vegetarian"]`) meant the user saw *wrong* values flash and then swap to their real prefs. Gating those controls behind `prefsLoading` shows a neutral skeleton during the fetch instead, so the user only ever sees one set of values.
+- **Learn**
+
+  ````tsx
+  // ❌ can't do this — useState initializer is synchronous, you can't await a fetch to seed it
+  const [cuisine, setCuisine] = useState(await getPreferences().preferredCuisine) // ✗ not allowed
+
+  // ❌ default now, reconcile on arrival — but the opinionated default FLASHES then swaps to real prefs
+  const [cuisine, setCuisine] = useState("Mexican")   // user sees "Mexican" for a beat, then "Italian" pops in
+
+  // ✅ seed defaults for the failure path, but render a SKELETON until the fetch settles
+  const [cuisine, setCuisine] = useState("Mexican")   // now only a *fallback*, not what the user normally sees
+  const [prefsLoading, setPrefsLoading] = useState(true)
+  useEffect(() => {
+    let active = true
+    getPreferences()
+      .then((p) => active && (setCuisine(p.preferredCuisine || "Any"), setDiets(p.dietaryRestrictions)))
+      .catch(() => {/* keep defaults if prefs can't load */})
+      .finally(() => active && setPrefsLoading(false))   // reveal real controls whether it succeeded or failed
+    return () => { active = false }   // guard against setState after unmount
+  }, [])   // mount-only: runs before the user touches the form, so it doesn't clobber edits
+
+  {prefsLoading ? <Skeleton className="h-9 w-full" /> : <Select value={cuisine} … />}
+  ````
+
+  A client component can't start with server data — it must render, *then* fetch and update. If you seed
+  with real-looking defaults, the user watches them get overwritten — jarring, and worse when the defaults
+  are opinionated (Mexican/Vegetarian) rather than neutral. The fix isn't to remove the defaults (they're
+  still the failure fallback, and controlled inputs need a defined value on first paint) — it's to **not
+  render them as if they were the answer.** A `prefsLoading` flag flipped in `.finally()` (so it clears on
+  both success *and* error) swaps the controls for skeletons during the one-round-trip window. The `active`
+  flag still guards every setState against an unmount mid-fetch.
+
+  **Where else you'd use it:** any form pre-filled from an API where the seeded default would be *visibly
+  wrong* until real data lands — an edit form (don't flash blank fields before the record loads), filters
+  restored from a saved view, a profile form, a settings screen. The tell: "the user sees value A, then it
+  jumps to value B." (If you can fetch on the **server**, prefer passing values as props/`defaultValue` and
+  skip the whole dance — this pattern is for client-only data like cookie-authed calls.)
+
+  **Rule of thumb:** default synchronously (controlled inputs need it, and it's your error fallback), but if
+  that default would flash-then-swap, gate the control behind a `loading` flag and show a skeleton until the
+  fetch settles. Clear the flag in `.finally()` so a failed fetch still reveals the fallback. Prefer
+  server-fetched props when the boundary allows it.
+
 > _Not used (deliberately, so far): `loading.tsx`/`error.tsx`/`Suspense` streaming, SSG/ISR, Server
 > Actions — loading & error states are hand-managed per view._
 
@@ -660,3 +707,46 @@
 
   **Rule of thumb:** don't point two build/dev processes at one output dir. When an error blames a file
   you never wrote, suspect a stale cache — delete it and regenerate before touching source.
+
+## Instrumentation & Third-Party Scripts
+
+### Vercel Analytics mounted as a Server Component in the root layout
+- **What:** `<Analytics />` from `@vercel/analytics/next` is rendered directly in the root `layout.tsx` body, **not** folded into the existing `"use client"` `GlobalHosts` host that already gathers app-wide UI (toasts, confirm dialog).
+- **Where:** `frontend/src/app/layout.tsx` (import `@vercel/analytics/next`, `<Analytics />` after `<GlobalHosts />`); `GlobalHosts` at `frontend/src/shared/components/GlobalHosts.tsx`.
+- **Why:** The `/next` entry is a Server-Component-friendly wrapper that injects the tracking script itself — pushing it into a client component would needlessly pull it across the client boundary and couple invisible instrumentation to our visual UI hosts. Keeping it a direct child of the server layout is the framework-recommended placement and keeps concerns separated.
+
+- **Learn**
+
+  **First, the vocabulary:**
+  - **Instrumentation** — code whose job is to *observe* the app (analytics, error tracking, perf metrics), not to render product UI. It should be invisible and side-effect-only.
+  - **Package subpath export** — the `/next` in `@vercel/analytics/next`. One package ships several entry points (`/react`, `/next`, …); the framework-specific one wires into that framework's rendering (here it emits the `<script>` and route-change tracking the App Router needs) so you don't wire it by hand.
+
+  ````tsx
+  // ❌ naive: dump it into the client UI host because "that's where global stuff goes"
+  "use client"
+  export function GlobalHosts() {
+    return <><Toaster /><ConfirmDialogHost /><Analytics /></>  // now analytics rides the client boundary
+  }
+
+  // ✅ our code: Analytics is a direct child of the SERVER root layout
+  import { Analytics } from "@vercel/analytics/next";
+  export default function RootLayout({ children }) {
+    return (
+      <html><body>
+        {children}
+        <GlobalHosts />   {/* visible UI hosts — legitimately client */}
+        <Analytics />      {/* invisible instrumentation — stays server-side */}
+      </body></html>
+    );
+  }
+  ````
+
+  **Plain-english why:** `GlobalHosts` is `"use client"` because toasts and the confirm dialog *need* browser hooks. `<Analytics />` doesn't — its `/next` variant handles its own client needs internally. Bundling unrelated concerns just because they're both "global" mixes a visual-UI host with a tracking script and drags the latter across a boundary it doesn't need. Two different concerns → two different mount points, each at the lowest-cost layer.
+
+  **Where else you'd use this "mount instrumentation at the server root, separate from UI hosts" pattern:**
+  - `@vercel/speed-insights/next` — same shape, same placement, right next to `<Analytics />`.
+  - Error/monitoring boundaries or a Sentry/PostHog script tag added at the root rather than inside a feature.
+  - A JSON-LD/structured-data `<script>` emitted from a server layout or page.
+  - Any provider that's genuinely client (theme, session) — the mirror-image lesson: *that* one belongs in a thin client wrapper, not the server root.
+
+  **Rule of thumb:** invisible instrumentation goes at the server root as its own child; don't staple it onto a client UI host just because both are "app-wide." Reach for a library's framework-specific subpath (`/next`) so it wires itself in correctly.

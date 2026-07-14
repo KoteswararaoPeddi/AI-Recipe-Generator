@@ -270,6 +270,16 @@ See build-plan.md for the full per-phase breakdown.
 _Add notes here as the build progresses — workarounds, patterns, anything that differs from
 the context files._
 
+> **Generator now pre-fills from saved preferences (Phase 3 gap closed).** `GeneratorForm` fetches
+> `getPreferences()` on mount and seeds **cuisine ← preferredCuisine**, **dietary restrictions ←
+> dietaryRestrictions**, **servings ← defaultServings**. While the fetch is in flight a `prefsLoading`
+> flag renders **content-shaped skeletons** over the 3 preference controls (no more flashing the
+> hardcoded defaults then swapping to real prefs); the hardcoded values are now only the **fallback on
+> fetch failure**. Frontend-only, reuses the settings service. Decision logged in
+> `engineering/frontend.md`. **Optional follow-up (not done):** pass `allergies` +
+> `measurementUnit` into `/recipes/generate` so the AI avoids allergens / uses metric-vs-imperial —
+> that needs a generate-DTO + prompt change on the backend.
+
 > **Deployment prep (Neon + Render + Vercel) — code ready, NOT yet deployed.** Split deploy:
 > Postgres on **Neon**, NestJS backend on **Render** (Vercel can't run a long-lived Nest server),
 > Next.js frontend on **Vercel**. Code changes made: Prisma datasource now has pooled `url` +
@@ -309,4 +319,17 @@ the context files._
 > custom `text-*` size tokens with `extendTailwindMerge` so size classes (`text-h2`) are not
 > conflated with colour classes (`text-foreground`) and dropped. Any new `text-size` token
 > added to `theme.css` must also be added to that list.
+
+> **Beyond-plan — Vercel Analytics (2026-07-14):** `<Analytics />` from `@vercel/analytics/next`
+> mounted in the root `src/app/layout.tsx` (server component, alongside `<GlobalHosts />`).
+> Invisible instrumentation, no config; collects page views/route changes once deployed to Vercel.
+> Decision + rationale logged in `context/engineering/frontend.md`.
+
+> **Bugfix — failed login reloaded the page (2026-07-14):** the axios 401 interceptor
+> (`src/shared/lib/axios.config.ts`) treated a login 401 as an expired session, tried to refresh,
+> failed, and hard-redirected (`window.location.href = "/login"`) — a full reload that hid the
+> "Invalid email or password." toast and flashed a raw "Unauthorized". Fixed by exempting
+> `/auth/login` + `/auth/register` (not just `/auth/refresh`) from the refresh-retry, so credential
+> 401s reject straight to `LoginForm`'s catch. Verified vs live backend (401 + proper message).
+> Rationale in `context/engineering/auth-security.md`.
 </content>
