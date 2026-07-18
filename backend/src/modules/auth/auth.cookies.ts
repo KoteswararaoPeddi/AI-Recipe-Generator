@@ -12,7 +12,10 @@ function baseOptions(secure: boolean) {
   return {
     httpOnly: true,
     secure, // true over HTTPS in production
-    sameSite: "lax" as const,
+    // Cross-site (frontend and backend on different domains) requires SameSite=None,
+    // and browsers only accept SameSite=None together with Secure. In local dev (secure=false)
+    // fall back to Lax, since None-without-Secure would be rejected over plain HTTP.
+    sameSite: secure ? ("none" as const) : ("lax" as const),
     path: "/",
   };
 }
@@ -28,7 +31,10 @@ export function setAuthCookies(res: Response, tokens: Tokens, secure: boolean): 
   });
 }
 
-export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { path: "/" });
-  res.clearCookie(REFRESH_COOKIE, { path: "/" });
+export function clearAuthCookies(res: Response, secure: boolean): void {
+  // clearCookie only removes the cookie if these options match the ones it was set with
+  // (notably sameSite + secure), so mirror baseOptions here.
+  const options = baseOptions(secure);
+  res.clearCookie(ACCESS_COOKIE, options);
+  res.clearCookie(REFRESH_COOKIE, options);
 }

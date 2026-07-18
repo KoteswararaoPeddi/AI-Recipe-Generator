@@ -90,7 +90,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.auth.logout(userId);
-    clearAuthCookies(res);
+    clearAuthCookies(res, this.secure);
     return { message: "Logged out", data: null };
   }
 

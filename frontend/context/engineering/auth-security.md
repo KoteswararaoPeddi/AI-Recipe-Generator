@@ -38,7 +38,7 @@
   long-lived credential's *exposure surface* small (one endpoint), not just its lifetime.
 
 ### HTTP-only cookies for token storage (not bearer headers / localStorage)
-- **What:** Tokens live in `access_token`/`refresh_token` HTTP-only cookies; custom `cookieExtractor`s feed both Passport strategies. Cookies: `httpOnly`, `sameSite: "lax"`, `secure` in production, `maxAge` = each JWT's TTL.
+- **What:** Tokens live in `access_token`/`refresh_token` HTTP-only cookies; custom `cookieExtractor`s feed both Passport strategies. Cookies: `httpOnly`, `secure` in production, `sameSite` env-driven (`None` cross-site in prod, `Lax` locally — see the dedicated entry below), `maxAge` = each JWT's TTL.
 - **Where:** `jwt.strategy.ts:11-13`, `jwt-refresh.strategy.ts:10-12`, `auth.cookies.ts`, `auth.controller.ts:38-40`.
 - **Why:** Keeps tokens out of JS-reachable storage (XSS can't read them); `sameSite: lax` mitigates CSRF; `secure` off in dev keeps localhost working.
 - **Learn**
